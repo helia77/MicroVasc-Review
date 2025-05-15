@@ -5,6 +5,10 @@
 This repository contains code and resources associated with the paper  
 "*Segmentation and Modeling of Large-Scale Microvascular Networks: A Survey*" by Goharbavang *et al*.
 
+<p align="center">
+  <img src="docs/overview.png" alt="Overview Diagram" width="100%" />
+</p>
+
 ## Repository Content
 The paper covers the following methods:
 
