@@ -1,136 +1,96 @@
 import gc
+import json
 import math
-import torch
+import logging
+import argparse
 import numpy as np
-import logging as log
+from pathlib import Path
 import scipy.linalg as lin
 import scipy.ndimage.filters as filters
+from typing import List, Optional, Tuple
 
-log.basicConfig(level=log.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 
-
-class Binarize:
+class Binarizer:
     """
-    A class to binarize 3D volumes using Otsu's thresholding, Frangi filter, Beyond Frangi filter, and U-Net.
+    A class to binarize 3D volumes using Otsu's thresholding, Frangi and Beyond Frangi filter.
     
-    Attributes:
-        volume (np.ndarray): The grayscale input 3D volume to be processed.
-        background (str): Background type, either 'black' or 'white'. Defaults to 'black'.
-        model (torch.nn.Module): Optional U-Net model for segmentation. Defaults to None
+    Args:
+        volume: 3D grayscale volume.
+        background: 'black' (default) or 'white'.
     """
     
-    def __init__(self, volume, background='black', unet_model=None):
+    def __init__(self, volume: np.ndarray, background: str = 'black'):
+        if background not in ("black", "white"):
+            raise ValueError("background must be 'black' or 'white'")
         self.volume = volume
         self.background = background
-        self.model = unet_model
-        log.info("Binarize object created.")
+        logger.info("Binarizer initialized (background=%s)", background)
         
         
-    def _compute_threshold(self):
+    def _compute_otsu_threshold(self) -> float:
         """
-        Compute the Otsu threshold for the input volume.
+        Compute Otsu's threshold over the 3D histogram.
+        """
+        flat = self.volume.ravel()
+        if flat.size == 0:
+            raise ValueError("Empty volume")
+        hist, edges = np.histogram(flat, bins=256, range=(flat.min(), flat.max()))
+        prob = hist.astype(float) / hist.sum()
+        centers = (edges[:-1] + edges[1:]) / 2.0
 
-        Returns:
-            float: The Otsu threshold value.
+        w0 = np.cumsum(prob)
+        w1 = np.cumsum(prob[::-1])[::-1]
+        m0 = np.cumsum(prob * centers) / np.maximum(w0, 1e-8)
+        m1 = (np.cumsum((prob * centers)[::-1]) / np.maximum(w1[::-1], 1e-8))[::-1]
+
+        sigma_b = w0[:-1] * w1[1:] * (m0[:-1] - m1[1:]) ** 2
+        thr = centers[:-1][np.argmax(sigma_b)]
+        logger.info("Otsu threshold: %.3f", thr)
+        return thr
+
+    def otsu3d(self) -> np.ndarray:
         """
-        if np.all(self.volume == 0):
-            log.warning("Input volume is all zeros.")
-            return 0
-        # compute historgram and probabilities
-        hist, bin_edges = np.histogram(self.volume, bins=256, range=(0, 256))
-        hist = hist.astype(float) / hist.sum()
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
-        
-        # compute cumilative sums and means
-        weight1 = np.cumsum(hist)
-        weight2 = np.cumsum(hist[::-1])[::-1]
-        mean1 = np.cumsum(hist * bin_centers) / weight1
-        mean2 = (np.cumsum((hist * bin_centers)[::-1]) / weight2[::-1])[::-1]
-        
-        # compute inter-class variance
-        inter_class_variance = weight1[:-1] * weight2[1:] * ((mean1[:-1] - mean2[1:]) ** 2)
-        threshold = bin_centers[:-1][np.argmax(inter_class_variance)]
-        
-        log.info(f"Computed Otsu threshold: {threshold}")
-        return threshold
+        3D Otsu's thresholding.
+        """   
+        thr = self._compute_threshold()
     
-    
-    def otsu_2d(self):
-        """
-        Apply Otsu's thresholding on each 2D slice of the volume.
-
-        Returns:
-            np.ndarray: Thresholded 3D volume.
-        """
-        if self.volume.size == 0:
-            log.error("Input volume is empty.")
-            raise ValueError("Input volume is empty.")
-        elif np.all(self.volume == 0):
-            log.warning("Input volume is all zeros.")
-            return np.uint8(self.volume)
-        
-        log.info("Applying Otsu's thresholding on 2D slices.")
-        # apply otsu on each image of the volume
-        thresh_imgs = []
-        for j in range(self.volume.shape[0]):
-            image = self.volume[j]
-            if image.dtype == np.float64:
-                image = np.uint8(image*255)
-            
-            threshold = self._compute_threshold()
-            
-            # apply threshold
-            if(self.background == 'black'):
-                thresh_img = (image >= threshold).astype(np.uint8)
-            elif(self.background == 'white'):
-                thresh_img = (image <= threshold).astype(np.uint8)
-            else:
-                log.error("Invalid background option. Choose 'black' or 'white'.")
-                raise ValueError("Invalid background option. Choose 'black' or 'white'.")
-            thresh_imgs.append(thresh_img)
-            
-        log.info("Otsu's thresholding completed.")
-        return np.stack(thresh_imgs, axis=0)
-
-
-    def otsu_3d(self):
-        """
-        Apply Otsu's thresholding on the entire 3D volume.
-
-        Returns:
-            np.ndarray: Thresholded 3D volume.
-        """
-        if self.volume.size == 0:
-            log.error("Input volume is empty.")
-            raise ValueError("Input volume is empty.")
-        elif np.all(self.volume == 0):
-            log.warning("Input volume is all zeros.")
-            return np.uint8(self.volume)
-        
-        log.info("Applying Otsu's thresholding on 3D volume.")
-        threshold = self._compute_threshold()
-        
         if self.background == 'black':
-            threshed_otsu3d = (self.volume >= threshold).astype(np.uint8)
+            mask = (self.volume >= thr)
         elif self.background == 'white':
-            threshed_otsu3d = (self.volume < threshold).astype(np.uint8)
-        else:
-            log.error("Invalid background option. Choose 'black' or 'white'.")
-            raise ValueError("Invalid background option. Choose 'black' or 'white'.")
-        
-        log.info("Otsu's thresholding completed.")
-        return threshed_otsu3d
-
-
-    def _compute_hessian(self, scale):
+            mask = (self.volume <= thr)
+            
+        logger.info("Completed 3D Otsu binarization.")
+        return mask.astype(np.uint8)
+    
+    def otsu2d(self) -> np.ndarray:
         """
-        Compute the Hessian matrix for a given scale.
+        Slice-by-slice Otsu thresholding.
+        """
+        out = []
+        for i in range(self.volume.shape[0]):
+            slice_ = self.volume[i]
+            self.volume = slice_
+            t = self._compute_otsu_threshold()
+            if self.background == "black":
+                mask = slice_ >= t
+            else:
+                mask = slice_ <= t
+            out.append(mask.astype(np.uint8))
+        result = np.stack(out, axis=0)
+        logger.info("Completed 2D Otsu binarization.")
+        return result.astype(np.uint8)
+    
+    def _hessian(self, scale: float):
+        """
+        Compute the Hessian mask at a given scale.
 
         Args:
-            scale (float): Scale (sigma) for Gaussian derivatives.
-
-        Returns:
-            tuple: Hessian matrix (H) and mask (T).
+            scale: Sigma for Gaussian derivatives.
         """
         X, Y, Z = self.volume.shape
         Hxx = np.zeros((X, Y, Z))
@@ -188,25 +148,16 @@ class Binarize:
         return H, T
     
     
-    def frangi_filter(self, alpha, beta, c, scale_range, threshold=None):
+    def frangi(self, alpha: float, beta: float, c: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
-        Apply the Frangi (aka. vesselness) filter for tubular enhancement in the volume.
+        Frangi (aka. vesselness) filter for 3D tubular enhancement.
 
         Args:
-            alpha (float): parameter for line-like structures.
-            beta (float): parameter for blob-like structures.
-            c (float): parameter for background noise suppression.
-            scale_range (list): List of scales to apply the filter.
-            threshold (str): Thresholding method, either 'otsu2d', 'otsu3d', or None.
-
-        Returns:
-            np.ndarray: Filtered (or binarized if threshold applied) 3D volume.
-        """
-        if not scale_range:
-            log.error("Scale range cannot be empty.")
-            raise ValueError("Scale range cannot be empty.")
-            
-        log.info("Applying Frangi filter.")
+            alpha, beta, c: Frangi parameters.
+            scale_range: List of scales for scale space.
+            threshold: None to filter, 'otsu2d' or 'otsu3d' to binarize the volume.
+        """         
+        logger.info("Running Frangi filter on %d scales.", len(scale_range))
         all_filters = []
         alpha2 = 2 * (alpha**2) if alpha != 0 else math.nextafter(0, 1)
         beta2  = 2 * (beta**2) if beta != 0 else math.nextafter(0, 1)
@@ -214,8 +165,8 @@ class Binarize:
         X, Y, Z = self.volume.shape
 
         for scale in scale_range:
-            H, T = self._compute_hessian(scale)
-            
+            H, T = self._hessian(scale)
+
             # eigendecomposition
             lambdas = lin.eigvalsh(H)
             idx = np.argwhere(T == 1)
@@ -247,42 +198,28 @@ class Binarize:
         
         # stack filters and compute maximum vesselness
         stacked_filters = np.stack(all_filters, axis=-1)
-        output = np.max(stacked_filters, axis=-1)
+        vesselness = np.max(stacked_filters, axis=-1)
 
-        if threshold is None:
-            log.info("Frangi filter completed.")
-            return output
-        elif threshold == 'otsu2d':
-            log.info("Frangi filter completed (Binarized using Otsu's on 2D slices.)")
-            self.volume = output
-            return self.otsu_2d()
-        elif threshold == 'otsu3d':
-            log.info("Frangi filter completed (Binarized using Otsu's on 3D volume.)")
-            self.volume = output
-            return self.otsu_3d()
-        else:
-            log.error("Invalid thresholding method. Options: None, 'otsu2d', 'otsu3d'.")
-            raise ValueError("Invalid thresholding method. Options: None, 'otsu2d', 'otsu3d'.")
+        if threshold == 'otsu2d':
+            self.volume = vesselness
+            return self.otsu2d()
+        if threshold == 'otsu3d':
+            self.volume = vesselness
+            return self.otsu3d()
+        
+        logger.info("Frangi filter completed.")
+        return vesselness
 
-
-
-    def bfrangi_filter(self, tau, scale_range, threshold=False):
+    def bfrangi_filter(self, tau: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
-        Apply the Beyond Frangi filter for tubular enhancement in the volume.
+        Beyond Frangi filter for 3D tubular enhancement.
 
         Args:
-            tau (float): Regularization parameter for Beyond Frangi filter.
-            scale_range (list): List of scales to apply the filter.
-            threshold (str): Thresholding method, either 'otsu2d', 'otsu3d', or None.
-
-        Returns:
-            np.ndarray: Filtered 3D volume.
+            tau: Beyond Frangi parameter (regularization).
+            scale_range: List of scales for scale space.
+            threshold: None to filter, 'otsu2d' or 'otsu3d' to binarize the volume.
         """
-        if not scale_range:
-            log.error("Scale range cannot be empty.")
-            raise ValueError("Scale range cannot be empty.")
-        
-        log.info("Applying Beyond Frangi filter.")
+        logger.info("Running Beyond Frangi filter on %d scales.", len(scale_range))
         all_filters = []
         X, Y, Z = self.volume.shape()
         
@@ -329,33 +266,63 @@ class Binarize:
         stacked_filters = np.stack(all_filters, axis=-1)
         output = np.max(stacked_filters, axis=-1)
 
-        if threshold == None:
-            log.info("Beyond Frangi filter completed.")
-            return output
-        elif threshold == 'otsu2d':
-            log.info("Beyond Frangi filter completed (Binarized using Otsu's on 2D slices.)")
+        if threshold == 'otsu2d':
             self.volume = output
-            return self.otsu_2d()
-        elif threshold == 'otsu3d':
-            log.info("Beyond Frangi filter completed (Binarized using Otsu's on 3D volume.)")
+            return self.otsu2d()
+        if threshold == 'otsu3d':
             self.volume = output
-            return self.otsu_3d()
-        else:
-            log.error("Invalid thresholding method. Options: None, 'otsu2d', 'otsu3d'.")
-            raise ValueError("Invalid thresholding method. Options: None, 'otsu2d', 'otsu3d'.")
+            return self.otsu3d()
+        
+        logger.info("Beyond Frangi filter completed.")
+        return output
 
-    def unet(self, threshold=False):
-        """
-        Apply a U-Net model for segmentation or binarization.
-        
-        Args:
-            threshold (bool): Returns binarized volume if True, 
-        Returns:
-            np.ndarray: Segmented 3D volume.
-        """
-        
-        if self.model is None:
-            log.error("No U-Net model provided.")
-            raise ValueError("No U-Net model provided.")
-        
-        # TODO: write what you ran through terminal for the model prediction and binarization
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="3D Volume Filtering and Binarization")
+    p.add_argument("--input", required=True, type=Path, help="Path to input .npy volume")
+    p.add_argument(
+        "--method", required=True,
+        choices=["otsu2d", "otsu3d", "frangi", "bfrangi"],
+        help="Binarization or filter method to apply."
+    )
+    p.add_argument("--output", required=True, type=Path, help="Path for output .npy mask or binarization.")
+    p.add_argument("--background", choices=["black", "white"],
+                   default="black",
+                   help="Which side vessels appear against.")
+    p.add_argument(
+        "--params",
+        type=json.loads,
+        default="{}",
+        help="JSON string of parameters for the chosen method."
+    )
+    return p.parse_args()
+
+
+def main():
+    """
+    Binarize.py
+    
+    A command-line tool and Python module for binarizing 3D volumes using:
+      - Otsu’s thresholding (2D slices or full 3D)
+      - Frangi vesselness
+      - Beyond-Frangi filter
+      - (Optional) U-Net model
+    
+    Usage (CLI):
+        python binarize.py \
+          --input path/to/volume.npy \
+          --background black \
+          --method otsu3d \
+          --output path/to/binary.npy \
+          [--params '{"alpha":0.5,"beta":0.5,"c":15,"scale_range":[1,2,3]}']
+    """
+    args = parse_args()
+    vol = np.load(args.input)
+    binzr = Binarizer(vol, background=args.background)
+    method = getattr(binzr, args.method)
+    out = method(**args.params) if args.params else method()
+    np.save(args.output, out)
+    logger.info("Saved output to %s", args.output)
+
+
+if __name__ == "__main__":
+    main()
