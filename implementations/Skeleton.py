@@ -1,16 +1,15 @@
 import os
-import sys
-import time
 import skfmm
 import logging
 import argparse
 import subprocess
 import numpy as np
 import manage_data as md
+from pathlib import Path
 import skimage.morphology as mph
 import scipy.ndimage.filters as filters
 import scipy.ndimage.morphology as morphology
-from typing import Path, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -196,7 +195,7 @@ class Skeletonize:
         return [rotUS, rotNE, rotDW,  rotSE, rotUW, rotDN,  rotSW, rotUN, rotDE,  rotNW, rotUE, rotDS]
   
     def kerautret(self, exe_path: Path, off_input: Path, output_path: Path, 
-                  dilateDist: Optional(float)=2.0, deltaG: Optional(float)=3.0, radius: Optional(float)=10.0, threshold: Optional(float)=0.5):
+                  dilateDist: Optional[float]=2.0, deltaG: Optional[float]=3.0, radius: Optional[float]=10.0, threshold: Optional[float]=0.5):
         """
         Run external Kerautret binary on OFF mesh.
         The exe file can be obtained by compiling the main Kerautret's project.

@@ -1,12 +1,11 @@
 import gc
-import json
 import math
 import logging
 import argparse
 import numpy as np
 from pathlib import Path
 import scipy.ndimage.filters as filters
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
