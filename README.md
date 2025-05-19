@@ -44,27 +44,33 @@ Other directories:
    cd MicroVasc-Review
    ```
 
-<!---
-2. **Install dependencies** (e.g., via `requirements.txt` or a Conda environment)
+2. **Install dependencies** (e.g., via Conda environment)
 
    ```bash
-   pip install -r requirements.txt
+   # conda create --name microvasc
+   # conda activate microvasc
+   pip install -e .
    ```
 
-3. **Prepare data**
+3. **Verify CLI tools**
 
    ```bash
-   cd manage_data
-   python download_and_convert.py --modality LSFM --output ../data/lsfm
+   binarize --help
+   skeleton --help
    ```
 
 4. **Run an algorithm**
 
    ```bash
-   cd implementations/frangi
-   python run_frangi.py --input ../../data/lsfm --output ../../results/frangi
+   binarize frangi \
+   --input path/to/volume.npy \
+   --output path/to/out.npy \
+   --background white \
+   --params 0.5 0.5 3 \
+   --scale 1 2 3 4
+   --th otsu3d
    ```
-
+<!---
 5. **Evaluate results**
 
    ```bash
