@@ -5,7 +5,6 @@ import logging
 import argparse
 import numpy as np
 from pathlib import Path
-import scipy.linalg as lin
 import scipy.ndimage.filters as filters
 from typing import List, Optional, Tuple
 
@@ -32,11 +31,12 @@ class Binarizer:
         logger.info("Binarizer initialized (background=%s)", background)
         
         
-    def _compute_otsu_threshold(self) -> float:
+    def _compute_threshold(self, data: Optional[np.ndarray] = None) -> float:
         """
         Compute Otsu's threshold over the 3D histogram.
         """
-        flat = self.volume.ravel()
+        arr = data if data is not None else self.volume
+        flat = arr.ravel()
         if flat.size == 0:
             raise ValueError("Empty volume")
         hist, edges = np.histogram(flat, bins=256, range=(flat.min(), flat.max()))
@@ -50,7 +50,6 @@ class Binarizer:
 
         sigma_b = w0[:-1] * w1[1:] * (m0[:-1] - m1[1:]) ** 2
         thr = centers[:-1][np.argmax(sigma_b)]
-        logger.info("Otsu threshold: %.3f", thr)
         return thr
 
     def otsu3d(self) -> np.ndarray:
@@ -58,7 +57,8 @@ class Binarizer:
         3D Otsu's thresholding.
         """   
         thr = self._compute_threshold()
-    
+        logger.info("Otsu threshold: %.3f", thr)
+
         if self.background == 'black':
             mask = (self.volume >= thr)
         elif self.background == 'white':
@@ -72,10 +72,10 @@ class Binarizer:
         Slice-by-slice Otsu thresholding.
         """
         out = []
-        for i in range(self.volume.shape[0]):
-            slice_ = self.volume[i]
-            self.volume = slice_
-            t = self._compute_otsu_threshold()
+        vol = self.volume
+        for i in range(vol.shape[0]):
+            slice_ = vol[i]
+            t = self._compute_threshold(data=slice_)
             if self.background == "black":
                 mask = slice_ >= t
             else:
@@ -147,7 +147,6 @@ class Binarizer:
         
         return H, T
     
-    
     def frangi(self, alpha: float, beta: float, c: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
         Frangi (aka. vesselness) filter for 3D tubular enhancement.
@@ -166,9 +165,8 @@ class Binarizer:
 
         for scale in scale_range:
             H, T = self._hessian(scale)
-
             # eigendecomposition
-            lambdas = lin.eigvalsh(H)
+            lambdas = np.linalg.eigvalsh(H)
             idx = np.argwhere(T == 1)
             V0 = np.zeros_like(self.volume, dtype=np.float64)
                 
@@ -199,6 +197,7 @@ class Binarizer:
         # stack filters and compute maximum vesselness
         stacked_filters = np.stack(all_filters, axis=-1)
         vesselness = np.max(stacked_filters, axis=-1)
+        self.background = 'black'
 
         if threshold == 'otsu2d':
             self.volume = vesselness
@@ -210,7 +209,7 @@ class Binarizer:
         logger.info("Frangi filter completed.")
         return vesselness
 
-    def bfrangi_filter(self, tau: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
+    def bfrangi(self, tau: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
         Beyond Frangi filter for 3D tubular enhancement.
 
@@ -221,13 +220,13 @@ class Binarizer:
         """
         logger.info("Running Beyond Frangi filter on %d scales.", len(scale_range))
         all_filters = []
-        X, Y, Z = self.volume.shape()
+        X, Y, Z = self.volume.shape
         
         for scale in scale_range:
-            H, T = self._compute_hessian(scale)
+            H, T = self._hessian(scale)
             
             # eigendecomposition
-            lambdas = lin.eigvalsh(H)
+            lambdas = np.linalg.eigvalsh(H)
             idx = np.argwhere(T == 1)
             V0 = np.zeros_like(self.volume, dtype=np.float64)
             for arg in idx:
@@ -244,7 +243,7 @@ class Binarizer:
                 if self.background == 'black':
                     l2 = -l2
                     l3 = -l3
-            
+                
                 # calculate lambda rho
                 reg_term = tau * max_l3             # regularized term
                 l_rho = l3
@@ -265,6 +264,7 @@ class Binarizer:
         # stack filters and compute maximum vesselness
         stacked_filters = np.stack(all_filters, axis=-1)
         output = np.max(stacked_filters, axis=-1)
+        self.background = 'black'
 
         if threshold == 'otsu2d':
             self.volume = output
@@ -277,25 +277,30 @@ class Binarizer:
         return output
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="3D Volume Filtering and Binarization")
-    p.add_argument("--input", required=True, type=Path, help="Path to input .npy volume")
-    p.add_argument(
-        "--method", required=True,
-        choices=["otsu2d", "otsu3d", "frangi", "bfrangi"],
-        help="Binarization or filter method to apply."
-    )
-    p.add_argument("--output", required=True, type=Path, help="Path for output .npy mask or binarization.")
-    p.add_argument("--background", choices=["black", "white"],
-                   default="black",
-                   help="Which side vessels appear against.")
-    p.add_argument(
-        "--params",
-        type=json.loads,
-        default="{}",
-        help="JSON string of parameters for the chosen method."
-    )
-    return p.parse_args()
+    parent = argparse.ArgumentParser(add_help=False, description='3D Volume Filtering and Binarization')
+    parent.add_argument("--input", required=True, type=Path, help="Path to input .npy volume")
+    parent.add_argument("--output", required=True, type=Path, help="Path for output .npy mask or binarization.")
+    parent.add_argument("--background", choices=["black", "white"], default="black")
+    
+    parser = argparse.ArgumentParser(description="Binarization or filter method to apply.")
+    sub = parser.add_subparsers(dest='method', required=True)
 
+    # thresholding methods
+    sub.add_parser('otsu2d', parents=[parent], help="2D Otsu")
+    sub.add_parser('otsu3d', parents=[parent], help="3D Otsu")
+
+    # vesselness filters
+    vessel = argparse.ArgumentParser(add_help=False)
+    vessel.add_argument('--scale', nargs='+', type=float, required=True)
+    vessel.add_argument('--th', choices=["otus2d", "otsu3d"], type=str, default=None, help="Optional thresholding technique.")
+
+    fr = sub.add_parser('frangi', parents=[parent, vessel], help="Frangi Filter")
+    fr.add_argument('--params', nargs=3, type=float, metavar=('alpha', 'beta', 'c'), required=True)
+    
+    bf = sub.add_parser('bfrangi', parents=[parent, vessel], help="Beyond Frangi Filter")
+    bf.add_argument('--params', nargs=1, type=float, metavar='tau', required=True)
+
+    return parser.parse_args()
 
 def main():
     """
@@ -303,23 +308,30 @@ def main():
     
     A command-line tool and Python module for binarizing 3D volumes using:
       - Otsu’s thresholding (2D slices or full 3D)
-      - Frangi vesselness
+      - Frangi vesselness filter
       - Beyond-Frangi filter
-      - (Optional) U-Net model
     
     Usage (CLI):
-        python binarize.py \
-          --input path/to/volume.npy \
-          --background black \
-          --method otsu3d \
-          --output path/to/binary.npy \
-          [--params '{"alpha":0.5,"beta":0.5,"c":15,"scale_range":[1,2,3]}']
+        python binarize.py frangi --input in.npy --output out.npy --background white \
+        --params 1 0.5 3 --scale 1 2 3 4 5
+        or
+        python binarize.py otsu3d --input in.npy --output out.npy --background white
+
     """
     args = parse_args()
     vol = np.load(args.input)
     binzr = Binarizer(vol, background=args.background)
-    method = getattr(binzr, args.method)
-    out = method(**args.params) if args.params else method()
+
+    if args.method in ('otsu2d', 'otsu3d'):
+        out = getattr(binzr, args.method)()
+    elif args.method == 'frangi':
+        a,b,c = args.params
+        scale_range = args.scale
+        out = binzr.frangi(alpha=a,  beta=b, c=c, scale_range=scale_range, threshold=args.th)
+    else: # bfrangi
+        scale_range = args.scale
+        out = binzr.bfrangi(tau=args.params[0], scale_range=scale_range, threshold=args.th)
+    
     np.save(args.output, out)
     logger.info("Saved output to %s", args.output)
 
