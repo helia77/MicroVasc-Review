@@ -86,15 +86,83 @@ Other directories:
    ```
 --->
 ## External Resources & Implementations
-
-* **Optimally Oriented Flux (OOF)**: [https://matlab.mathworks.com/open/fileexchange/v1?id=41612](https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure)
-
+* **Beyond Frangi**: [https://github.com/timjerman/JermanEnhancementFilter](https://github.com/timjerman/JermanEnhancementFilter)
+* **Optimally Oriented Flux**: [https://matlab.mathworks.com/open/fileexchange/v1?id=41612](https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure)
 * **U-Net**: [https://github.com/milesial/Pytorch-UNet](https://github.com/MrMras/CNN)
-
 * **nnU-Net**: [https://github.com/MIC-DKFZ/nnunet](https://github.com/MIC-DKFZ/nnunet)
-
+* **DeepVesselNet**: [https://github.com/giesekow/deepvesselnet.git](https://github.com/giesekow/deepvesselnet.git)
+* **Lee Thinning**: [https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py](https://github.com/scikit-image)
+* **Palagyi Thinning**: [https://github.com/ClearAnatomics/ClearMap](https://github.com/ClearAnatomics/ClearMap)
+* **Kerautret Centerline**: [https://github.com/kerautret/CDCVAM](https://github.com/kerautret/CDCVAM)
+* **Kline Centerline**: [https://github.com/TLKline/poreture](https://github.com/TLKline/poreture)
 * **Starlab MCF Skeletonization**: [https://github.com/taiya/starlab-mcfskel](https://github.com/taiya/starlab-mcfskel)
-
 * **3D Slicer**: [https://www.slicer.org](https://www.slicer.org)
 
 Refer to the paper for detailed methodology, evaluation results, and discussions.
+
+## Running External Codes
+
+### 1. **U-Net**
+   
+  * Installation:
+    
+    ```bash
+    conda create -n unet python=TODO
+    pip install TODO
+    
+    git clone TODO
+    cd TODO
+    ```
+  * Usage:
+    
+    ```bash
+    # Upload .npy files under ./unprocessed_data/{name_of_dataset}
+    # Change the path to these files in ./create_volume_from_npy.py
+    python ./create_volume_from_npy.py
+    # Should create a folder ./data/{name_of_dataset} and add 2 files in there.
+    cd ./model/       # change the paths in ./model.py to ./data/{name_of_dataset}/{files}
+    python ./model.py EPOCHS -c
+    #  Model will save the model under ./saved_models/{name_of_dataset}/model_for_vasc3d{random id}.pth.
+
+    TODO: Run the model for prediction
+    ```
+    
+### 2. **DeepVesselNet**
+   
+  * Installation:
+    
+    ```bash
+    conda create -n deepv python=3.6.0
+    pip install Keras==2.0.8 numpy==1.14.0 sklearn==0.0 tensorflow-gpu==1.4.0 simpleitk==1.0.0
+    
+    git clone https://github.com/giesekow/deepvesselnet.git
+    cd deepvesselnet
+    pip install -e .
+    ```
+
+### 3. **nnU-Net**
+   
+  * Installation:
+    
+    ```bash
+    conda create -n nnunet python=3.9.*
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    pip install nnunetv2
+    
+    set nnUNet_raw = path/to/nnUNet_raw
+    set nnUNet_preprocessed = path/to/nnUNet_preprocessed
+    set nnUNet_results = path/to/nnUNet_results
+    ```
+  * Usage:
+    
+    ```bash
+    # Use the new presets
+    nnUNetv2_plan_experiment -d DATASET_ID -pl nnUNetPlannerResEncL
+    # Extract fingerprint
+    nnUNetv2_plan_and_preprocess -d DATASET_ID --verify_dataset_integrity
+    # Train
+    nnUNetv2_train DATASET__ID 3d_fullres 0/1/2/3/4 -p nnUNetResEncUNetLPlans
+    # Predict
+    nnUNetv2_predict -i INPUT_FOLDER -o OUTPUT_FOLDER -d DATASET_ID -c 3d_fullres -p nnUNetResEncUNetLPlans --save_probabilities
+    nnUNetv2_apply_postprocessing -i FOLDER_WITH_PREDICTIONS -o OUTPUT_FOLDER --pp_pkl_file POSTPROCESSING_FILE -plans_json PLANS_FILE -dataset_json DATASET_JSON_FILE
+    ```
