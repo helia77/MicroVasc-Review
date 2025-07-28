@@ -88,7 +88,7 @@ Other directories:
 ## External Resources & Implementations
 * **Beyond Frangi**: [https://github.com/timjerman/JermanEnhancementFilter](https://github.com/timjerman/JermanEnhancementFilter)
 * **Optimally Oriented Flux**: [https://matlab.mathworks.com/open/fileexchange/v1?id=41612](https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure)
-* **U-Net**: [https://github.com/milesial/Pytorch-UNet](https://github.com/MrMras/CNN)
+* **U-Net**: [https://github.com/MrMras/CNN](https://github.com/MrMras/CNN)
 * **nnU-Net**: [https://github.com/MIC-DKFZ/nnunet](https://github.com/MIC-DKFZ/nnunet)
 * **DeepVesselNet**: [https://github.com/giesekow/deepvesselnet.git](https://github.com/giesekow/deepvesselnet.git)
 * **Lee Thinning**: [https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py](https://github.com/scikit-image)
