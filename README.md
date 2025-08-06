@@ -107,24 +107,30 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
   * Installation:
     
     ```bash
-    conda create -n unet python=TODO
-    pip install TODO
+    # Requirements
+    # Python 3.12+
+    # PyTorch, NumPy, OpenCV, tqdm, scipy, matplotlib
+    git clone https://github.com/MrMras/CNN.git
+    cd CNN
     
-    git clone TODO
-    cd TODO
+    conda env create -n cnn -f environment.yml
+    conda activate cnn
     ```
   * Usage:
     
     ```bash
-    # Upload .npy files under ./unprocessed_data/{name_of_dataset}
-    # Change the path to these files in ./create_volume_from_npy.py
-    python ./create_volume_from_npy.py
-    # Should create a folder ./data/{name_of_dataset} and add 2 files in there.
-    cd ./model/       # change the paths in ./model.py to ./data/{name_of_dataset}/{files}
-    python ./model.py EPOCHS -c
-    #  Model will save the model under ./saved_models/{name_of_dataset}/model_for_vasc3d{random id}.pth.
-
-    TODO: Run the model for prediction
+      # Upload .npy files under   ./unprocessed_data/{name_of_dataset}
+      # Change the path to these files in ./create_volume_from_npy.py
+      python ./create_volume_from_npy.py
+      # Should create a folder ./data/{name_of_dataset} and add 2 files in there.
+    
+      cd ./model/       # change the paths in ./model.py to ./data/{name_of_dataset}/{files}
+      python ./model.py EPOCHS -c
+      #  Model will save the model under ./saved_models/{name_of_dataset}/model_for_vasc3d{random id}.pth.
+    
+      cd ../            # specify the path for the trained model and the path to the target volume (line 64)
+      python ./run_model.py
+      # Binary and probability maps will be generated in ./processed_npy/ and ./probability_npy/
     ```
     
 ### 2. **DeepVesselNet**
