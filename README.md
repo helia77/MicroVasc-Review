@@ -90,7 +90,6 @@ Other directories:
 * **Optimally Oriented Flux**: [https://matlab.mathworks.com/open/fileexchange/v1?id=41612](https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure)
 * **U-Net**: [https://github.com/MrMras/CNN](https://github.com/MrMras/CNN)
 * **nnU-Net**: [https://github.com/MIC-DKFZ/nnunet](https://github.com/MIC-DKFZ/nnunet)
-* **DeepVesselNet**: [https://github.com/giesekow/deepvesselnet.git](https://github.com/giesekow/deepvesselnet.git)
 * **Lee Thinning**: [https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py](https://github.com/scikit-image)
 * **Palagyi Thinning**: [https://github.com/ClearAnatomics/ClearMap](https://github.com/ClearAnatomics/ClearMap)
 * **Kerautret Centerline**: [https://github.com/kerautret/CDCVAM](https://github.com/kerautret/CDCVAM)
@@ -133,20 +132,7 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
       # Binary and probability maps will be generated in ./processed_npy/ and ./probability_npy/
     ```
     
-### 2. **DeepVesselNet**
-   
-  * Installation:
-    
-    ```bash
-    conda create -n deepv python=3.6.0
-    pip install Keras==2.0.8 numpy==1.14.0 sklearn==0.0 tensorflow-gpu==1.4.0 simpleitk==1.0.0
-    
-    git clone https://github.com/giesekow/deepvesselnet.git
-    cd deepvesselnet
-    pip install -e .
-    ```
-
-### 3. **nnU-Net**
+### 2. **nnU-Net**
    
   * Installation:
     
