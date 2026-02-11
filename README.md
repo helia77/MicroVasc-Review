@@ -5,9 +5,23 @@
 This repository contains code and resources associated with the paper  
 "*Segmentation and Modeling of Large-Scale Microvascular Networks: A Survey*" by Goharbavang *et al*.
 
+📄 **[Read the Full Paper](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2025.1645520/full)**
+
 <p align="center">
   <img src="docs/overview.png" alt="Overview Diagram" width="100%" />
 </p>
+
+## Citation
+If you use this code or the paper, please cite:
+
+```bibtex
+@article{goharbavang2025segmentation,
+  title={Segmentation and Modeling of Large-Scale Microvascular Networks: A Survey},
+  author={Goharbavang, Helia and [Other Authors]},
+  journal={[Journal Name]},
+  year={2025}
+}
+```
 
 ## Repository Content
 The paper covers the following methods:
