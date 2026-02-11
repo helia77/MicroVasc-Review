@@ -16,10 +16,13 @@ If you use this code or the paper, please cite:
 
 ```bibtex
 @article{goharbavang2025segmentation,
-  title={Segmentation and Modeling of Large-Scale Microvascular Networks: A Survey},
-  author={Goharbavang, Helia and [Other Authors]},
-  journal={[Journal Name]},
-  year={2025}
+  title={Segmentation and modeling of large-scale microvascular networks: a survey},
+  author={Goharbavang, Helya and Ashitkov, Artem T and Pillai, Athira and Wythe, Joshua D and Chen, Guoning and Mayerich, David},
+  journal={Frontiers in Bioinformatics},
+  volume={5},
+  pages={1645520},
+  year={2025},
+  publisher={Frontiers Media SA}
 }
 ```
 
