@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "microvasc_review"
+version = "0.2.0"
+description = "Review of Segmentation and Skeletonization Methods for Large-Scale Microvascular Networks"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Helya Goharbavang" }]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "scikit-image>=0.19",
+]
+
+[project.optional-dependencies]
+# Kline centerline extraction (fast marching method)
+kline = ["scikit-fmm>=2021.4"]
+# Image and volume I/O helpers in manage_data
+io = [
+    "opencv-python>=4.5",
+    "pynrrd>=0.4",
+    "SimpleITK>=2.0",
+]
+test = ["pytest"]
+all = [
+    "scikit-fmm>=2021.4",
+    "opencv-python>=4.5",
+    "pynrrd>=0.4",
+    "SimpleITK>=2.0",
+    "pytest",
+]
+
+[project.scripts]
+binarize = "implementations.Binarize:main"
+skeleton = "implementations.Skeleton:main"
+
+[project.urls]
+Homepage = "https://github.com/helia77/MicroVasc-Review"
+Paper = "https://doi.org/10.3389/fbinf.2025.1645520"
+
+[tool.setuptools.packages.find]
+include = ["implementations*", "manage_data*", "metrics*", "optimization*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
