@@ -1,12 +1,9 @@
 import os
-import nrrd
-import cv2
 import shutil
 import struct
 import numpy as np
 import logging as log
 import skimage as ski
-import SimpleITK as sitk
 
 
 def load_images(folder_path, num_img_range='all', stack=False, grayscale=False, crop_size=(0,0), crop_location = (0, 0)):
@@ -24,6 +21,7 @@ def load_images(folder_path, num_img_range='all', stack=False, grayscale=False, 
     Returns:
         np.ndarray or list: Loaded images as a stacked array or list.
     """
+    import cv2
     images_list = [f for f in os.listdir(folder_path) if f.endswith('.bmp') or
                    f.endswith('.jpg') or f.endswith('.tif') or f.endswith('.png')]
 
@@ -65,6 +63,7 @@ def save_slices(volume, folder_path, number='all', file_format='bmp'):
         number (str or int): Number of slices to save. 'all' for all slices.
         file_format (str): File format for saving images ('bmp' or 'png').
     """
+    import cv2
     if os.path.exists(folder_path):
         shutil.rmtree(folder_path)
     os.makedirs(folder_path)
@@ -96,6 +95,7 @@ def nrrd2npy(nrrd_path):
     if not os.path.exists(nrrd_path):
         raise FileNotFoundError(f"NRRD file not found: {nrrd_path}")
 
+    import nrrd
     data, _ = nrrd.read(nrrd_path)
     return data
 
@@ -112,9 +112,10 @@ def npy2nrrd(arr, filename):
     if not isinstance(arr, np.ndarray):
         raise ValueError("Input must be a NumPy array.")
 
+    import nrrd
     nrrd.write(filename, arr)
     
-def resample(data, spacing, output_spacing, interpolator=sitk.sitkLinear):
+def resample(data, spacing, output_spacing, interpolator=None):
     """
     Resample a 3D volume to a new spacing.
 
@@ -122,11 +123,14 @@ def resample(data, spacing, output_spacing, interpolator=sitk.sitkLinear):
         data (np.ndarray): Input 3D volume.
         spacing (tuple): Original spacing.
         output_spacing (tuple): Desired spacing.
-        interpolator: Interpolation method (default: sitk.sitkLinear).
+        interpolator: Interpolation method (default: None, which means sitk.sitkLinear).
 
     Returns:
         np.ndarray: Resampled volume.
     """
+    import SimpleITK as sitk
+    if interpolator is None:
+        interpolator = sitk.sitkLinear
     log.info(f"Resampling volume to spacing {output_spacing}")
     image = sitk.GetImageFromArray(data)
     image = sitk.Cast(image, sitk.sitkFloat32)
@@ -468,6 +472,7 @@ def adjust_brightness_contrast(image, clip_hist_percent=1):
             - float: Alpha (contrast adjustment factor).
             - float: Beta (brightness adjustment factor).
     """
+    import cv2
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     hist = cv2.calcHist([gray], [0], None, [256], [0,256])
     hist_size = len(hist)

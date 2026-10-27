@@ -39,6 +39,12 @@ def bifurcation_mask():
             | capsule(shape, (14, 14, 14), (25, 23, 22), 2.5))
 
 
+def torus_mask(shape=(14, 32, 32), major=9.0, minor=3.0):
+    """A torus around axis 0, centered in the volume, with one hole."""
+    z, y, x = np.meshgrid(*[np.arange(n) - (n - 1) / 2 for n in shape], indexing="ij")
+    return np.hypot(np.hypot(y, x) - major, z) <= minor
+
+
 def tube():
     return render(tube_mask(), seed=1)
 

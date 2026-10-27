@@ -1,14 +1,12 @@
 import os
-import skfmm
 import logging
 import argparse
 import subprocess
 import numpy as np
-import manage_data as md
+import scipy.ndimage as ndi
+from manage_data import manage_data as md
 from pathlib import Path
 import skimage.morphology as mph
-import scipy.ndimage.filters as filters
-import scipy.ndimage.morphology as morphology
 from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -33,10 +31,12 @@ class Skeletonize:
            Computer Vision, Graphics, and Image Processing, 56(6):462-478, 1994.
             
         For full description, refer to https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py
-        """        
-        # alternative function : mph.skeletonize(sample_gr, method='lee')
+
+        Returns:
+            uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
+        """
         logger.info("Running Lee's thinning.")
-        return mph.skeletonize_3d(volume)
+        return mph.skeletonize(volume, method='lee').astype(np.uint8)
     
     
     def palagyi(self, volume: np.ndarray, templates_path: Path) -> np.ndarray:
@@ -259,8 +259,13 @@ class Skeletonize:
             
         """
         
+        try:
+            import skfmm
+        except ImportError as err:
+            raise ImportError("kline requires scikit-fmm. Install it with: pip install scikit-fmm") from err
+
         logger.info("Running Kline's method.")
-        
+
         # Make sure object is equal to 1, without specifying dtype, would be logical
         B2 = np.array(volume.copy() > 0, dtype=np.uint8)
 
@@ -294,7 +299,7 @@ class Skeletonize:
         endx, endy, endz = self._detect_local_maxima(hold_binary_travel_time)
 
         # Perform second FMM, to create field for gradient descent
-        dMap = morphology.distance_transform_edt(constant_speed)
+        dMap = ndi.distance_transform_edt(constant_speed)
         weighted_speed = dMap ** dmw
         weighted_travel_time = skfmm.travel_time(phi, weighted_speed)
         weighted_travel_time = weighted_travel_time.filled()
@@ -373,11 +378,11 @@ class Skeletonize:
             A boolean mask of the peaks (i.e. 1 when the pixel's value is the neighborhood maximum, 0 otherwise)
         """
         # define a 26-connected neighborhood
-        neighborhood = morphology.generate_binary_structure(3,3) # first is dimension, next is relative connectivity
+        neighborhood = ndi.generate_binary_structure(3,3) # first is dimension, next is relative connectivity
 
-        # apply the local maximum filter; all locations of maximum value 
+        # apply the local maximum filter; all locations of maximum value
         # in their neighborhood are set to 1
-        local_max = (filters.maximum_filter(vol, footprint=neighborhood)==vol)
+        local_max = (ndi.maximum_filter(vol, footprint=neighborhood)==vol)
 
         # Remove background
         local_max[vol==0] = 0
