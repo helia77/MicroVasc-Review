@@ -49,3 +49,16 @@ def test_skeleton_palagyi(tmp_path, templates):
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"), *extra)
     assert result.returncode == 0, result.stderr
     np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonize().palagyi(mask))
+
+
+def test_skeleton_kerautret(tmp_path, fake_cdcvam):
+    exe, read_log = fake_cdcvam
+    (tmp_path / "mesh.off").write_text("OFF\n0 0 0\n")
+    result = run("-m", "implementations.Skeleton", "kerautret",
+                 "--input", str(tmp_path / "mesh.off"), "--output", str(tmp_path / "tree"),
+                 "--exe-path", str(exe), "--dilate-dist", "1.5", "--delta-g", "2",
+                 "--radius", "12", "--threshold", "0.25")
+    assert result.returncode == 0, result.stderr
+    assert read_log()["argv"] == [str(exe), "-i", str(tmp_path / "mesh.off"), "-o", str(tmp_path / "tree"),
+                                  "--dilateDist", "1.5", "-g", "2.0", "-R", "12.0", "-t", "0.25"]
+    assert (tmp_path / "tree.obj").exists()

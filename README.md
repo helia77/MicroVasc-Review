@@ -175,3 +175,30 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
     nnUNetv2_predict -i INPUT_FOLDER -o OUTPUT_FOLDER -d DATASET_ID -c 3d_fullres -p nnUNetResEncUNetLPlans --save_probabilities
     nnUNetv2_apply_postprocessing -i FOLDER_WITH_PREDICTIONS -o OUTPUT_FOLDER --pp_pkl_file POSTPROCESSING_FILE -plans_json PLANS_FILE -dataset_json DATASET_JSON_FILE
     ```
+
+### 3. **Kerautret (external)**
+
+  `skeleton kerautret` runs the `centerLineGeodesicGraph` program from [CDCVAM](https://github.com/kerautret/CDCVAM), which must be built separately. The input is a surface mesh of the binarized volume in OFF format.
+
+  * Installation:
+
+    ```bash
+    # Requirements: CMake, a C++ compiler, Boost, and DGtal (https://github.com/DGtal-team/DGtal)
+    git clone https://github.com/kerautret/CDCVAM.git
+    cd CDCVAM
+    mkdir build && cd build
+    cmake ..
+    make
+    # The program is build/bin/centerLineGeodesicGraph
+    ```
+  * Usage:
+
+    ```bash
+    skeleton kerautret \
+      --input path/to/mesh.off \
+      --output path/to/out/tree \
+      --exe-path path/to/CDCVAM/build/bin/centerLineGeodesicGraph \
+      --dilate-dist 2 --delta-g 3 --radius 10 --threshold 0.5
+    # Writes treeVertex.sdp, treeEdges.sdp, treeRadius.sdp and tree.obj in path/to/out/
+    ```
+    `--radius` is the accumulation distance. The paper sets it slightly larger than the radius of the largest vessels.

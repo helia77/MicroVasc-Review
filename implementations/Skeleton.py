@@ -211,29 +211,40 @@ class Skeletonize:
         -> Based on https://github.com/kerautret/CDCVAM (@author: kerautret)
         
         Args:
-            exe_path:           Path to the execution file ("CenterLineGeodesicGraph" function)
-            off_input:          Path to the input volume( OFF format)
-            output_path:        Output file name
+            exe_path:           Path to the CDCVAM "centerLineGeodesicGraph" executable
+            off_input:          Path to the input surface mesh (OFF format)
+            output_path:        Output prefix. Writes <prefix>Vertex.sdp, <prefix>Edges.sdp,
+                                <prefix>Radius.sdp and <prefix>.obj
             dilateDist:         Dilate distance of the confidence voxels. 2.0 (default)
             deltaG:             The parameter to consider interval of distances. 3.0  (default)
             radius:             The radius used to compute the accumulation. 10.0  (default)
             threshold:          The threshold in the confidence estimation. 0.5  (default)
-            
+
         References:
-        .. [Kerautret2016] B. Kerautret, A. Krähenbühl, I. Debled-Rennesson and J. -O. Lachaud, 
-        "Centerline detection on partial mesh scans by confidence vote in accumulation map," 2016, 
+        .. [Kerautret2016] B. Kerautret, A. Krähenbühl, I. Debled-Rennesson and J. -O. Lachaud,
+        "Centerline detection on partial mesh scans by confidence vote in accumulation map," 2016,
         pp. 1376-1381, doi: 10.1109/ICPR.2016.7899829.
         """
-        
+        exe_path, off_input, output_path = Path(exe_path), Path(off_input), Path(output_path)
+        if not exe_path.is_file() or not os.access(exe_path, os.X_OK):
+            raise FileNotFoundError(
+                f"Kerautret executable not found or not executable: {exe_path}. "
+                "Get CDCVAM from https://github.com/kerautret/CDCVAM and build it with CMake "
+                "(needs DGtal): mkdir build && cd build && cmake .. && make. "
+                "The executable is build/bin/centerLineGeodesicGraph.")
+        if not off_input.is_file():
+            raise FileNotFoundError(f"Input mesh not found: {off_input}")
+
         logger.info("Running Kerautret's skeletonization.")
-        # Remove the previous files if exist
-        if os.path.isfile(output_path+'Vertex.sdp'):
-            os.remove(output_path+'Vertex.sdp')
-            os.remove(output_path+'Edges.sdp')
+        # Remove previous results for this output prefix only
+        for suffix in ("Vertex.sdp", "Edges.sdp", "Radius.sdp"):
+            old = output_path.with_name(output_path.name + suffix)
+            if old.is_file():
+                old.unlink()
         command = [
-            exe_path,
-            '-i', off_input,
-            "-o", output_path,
+            str(exe_path),
+            "-i", str(off_input),
+            "-o", str(output_path),
             "--dilateDist", str(dilateDist),
             "-g", str(deltaG),
             "-R", str(radius),
@@ -242,10 +253,11 @@ class Skeletonize:
         # Execute the command
         logger.info("Executing: %s", ' '.join(command))
         subprocess.run(command, check=True)                         # saves three files: Vertex, Edges, and Radius in .SDP format
-        
+
         # Convert to .OBJ and save
-        md.sdp2obj(output_path)
-        logger.info("Kerautret output at %s", output_path)
+        obj_path = Path(md.sdp2obj(output_path))
+        logger.info("Kerautret output at %s", obj_path)
+        return obj_path
             
     def kline(self, volume: np.ndarray, startID: Tuple[int, int, int], dmw: int=6, mbtr: int=10):
         """
@@ -431,7 +443,14 @@ def main():
     p_ker.add_argument("--input", type=Path, required=True)
     p_ker.add_argument("--output", type=Path, required=True)
     p_ker.add_argument("--exe-path", type=Path, required=True)
-    p_ker.add_argument("--params", type=List, default=[2.0, 3.0, 10.0, 0.5])
+    p_ker.add_argument("--dilate-dist", type=float, default=2.0,
+                       help="Dilate distance of the confidence voxels (default: 2.0)")
+    p_ker.add_argument("--delta-g", type=float, default=3.0,
+                       help="Interval of distances considered (default: 3.0)")
+    p_ker.add_argument("--radius", type=float, default=10.0,
+                       help="Radius used to compute the accumulation (default: 10.0)")
+    p_ker.add_argument("--threshold", type=float, default=0.5,
+                       help="Threshold in the confidence estimation (default: 0.5)")
 
     # kline subcommand
     p_kl = sub.add_parser("kline", help="Kline centerline extraction method")
@@ -457,13 +476,13 @@ def main():
 
     elif args.cmd == "kerautret":
         ske.kerautret(
-            args.input,
-            args.output,
-            args.exe_path,
-            args.params[0],
-            args.params[1],
-            args.params[2],
-            args.params[3]
+            exe_path=args.exe_path,
+            off_input=args.input,
+            output_path=args.output,
+            dilateDist=args.dilate_dist,
+            deltaG=args.delta_g,
+            radius=args.radius,
+            threshold=args.threshold
         )
 
     elif args.cmd == "kline":

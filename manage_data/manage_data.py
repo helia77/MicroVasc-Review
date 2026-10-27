@@ -185,26 +185,32 @@ def sdp2obj(input_file):
     Convert SDP files (Vertex.sdp and Edges.sdp) to an OBJ file. Used for Kerautret method.
 
     Args:
-        input_file (str): Base name of the SDP files (without extensions).
+        input_file (str or Path): Base name of the SDP files (without extensions).
+
+    Returns:
+        str: Path of the OBJ file, <input_file>.obj.
     """
+    input_file = os.fspath(input_file)
     vertex_file = input_file + 'Vertex.sdp'
     edges_file = input_file + 'Edges.sdp'
     if not os.path.exists(vertex_file) or not os.path.exists(edges_file):
         raise FileNotFoundError(f"SDP files not found: {vertex_file}, {edges_file}")
-    
+
     with open(vertex_file, 'r') as vfile, open(edges_file, 'r') as efile:
-        vertices = vfile.readlines()
-        edges = efile.readlines()
-        
-    with open(input_file+'.obj', 'w') as objfile:
+        vertices = [line for line in vfile if line.strip()]
+        edges = [line for line in efile if line.strip()]
+
+    obj_file = input_file + '.obj'
+    with open(obj_file, 'w') as objfile:
         objfile.write('# vertices\n')
         for vertex in vertices:
             objfile.write('v '+ vertex.strip() + '\n')
-        
+
         objfile.write('\n# edges\n')
         for edge in edges:
             v1, v2 = edge.strip().split()
             objfile.write(f'l {int(v1) + 1} {int(v2) + 1}\n')
+    return obj_file
 
 
 def cg2obj(input_file):
