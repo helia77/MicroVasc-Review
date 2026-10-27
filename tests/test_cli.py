@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 import synthetic
 from implementations.Skeleton import Skeletonize
@@ -38,3 +39,13 @@ def test_skeleton_lee(tmp_path):
     assert out.dtype == np.uint8
     np.testing.assert_array_equal(out, Skeletonize().lee(mask))
 
+
+@pytest.mark.parametrize("templates", [False, True], ids=["bundled", "explicit"])
+def test_skeleton_palagyi(tmp_path, templates):
+    mask = synthetic.tube_mask().astype(np.uint8)
+    np.save(tmp_path / "in.npy", mask)
+    extra = ["--templates", str(Skeletonize.DEFAULT_TEMPLATES)] if templates else []
+    result = run("-m", "implementations.Skeleton", "palagyi",
+                 "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"), *extra)
+    assert result.returncode == 0, result.stderr
+    np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonize().palagyi(mask))

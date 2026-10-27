@@ -19,6 +19,8 @@ class Skeletonize:
     """
     Wraps multiple 3D skeletonization algorithms.
     """
+    # Palagyi lookup table shipped with the package
+    DEFAULT_TEMPLATES = Path(__file__).with_name("PK12.npy")
     
         
     def lee(self, volume: np.ndarray) -> np.ndarray:
@@ -39,22 +41,28 @@ class Skeletonize:
         return mph.skeletonize(volume, method='lee').astype(np.uint8)
     
     
-    def palagyi(self, volume: np.ndarray, templates_path: Path) -> np.ndarray:
+    def palagyi(self, volume: np.ndarray, templates_path: Optional[Path] = None) -> np.ndarray:
         """ 
         3D thinning via Palágyi's method (12-subiteration).
         -> Based on ClearMap2 (@author: ChristophKirst)
 
         Requires: 
-            "PK12.npy" file, contatinig the 14-templates
-
+            "PK12.npy" file, contatinig the 14-templates.
+            Defaults to the PK12.npy bundled next to this file.
+        
         References:
         .. [Palagy1999] Palagyi & Kuba, A Parallel 3D 12-Subiteration Thinning Algorithm,
             Graphical Models and Image Processing 61, 199-221 (1999).
+
+        Returns:
+            uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
         """
         logger.info("Running Palágyi's thinning.")
+        binary = (volume > 0).astype(np.uint8)
         # extract indices vessel points in the input
-        points_arg = np.argwhere(volume)
-        binary = np.copy(volume)
+        points_arg = np.argwhere(binary)
+        if templates_path is None:
+            templates_path = self.DEFAULT_TEMPLATES
         deletable = np.load(templates_path)
         
         # create an array with base 2 numbers on the cube for convolution and LUT matching, default center is 0
@@ -81,7 +89,7 @@ class Skeletonize:
         while True:
             # Find which black points are border points 
             # the index of the border varibale is the same as black points in point_arg
-            border = self._convolution3d(binary, n6(), points_arg) < 6
+            border = self._convolution3d(binary, n6, points_arg) < 6
             border_points = points_arg[border]
             border_ids = np.nonzero(border)[0]
             keep = np.ones(len(border), dtype=bool)
@@ -104,7 +112,7 @@ class Skeletonize:
         
         return binary
     
-    def _convolution3d(volume: np.ndarray, kernel: np.ndarray, points: np.ndarray) -> np.ndarray:
+    def _convolution3d(self, volume: np.ndarray, kernel: np.ndarray, points: np.ndarray) -> np.ndarray:
         """
         Perform 3D convolution at specific points.
 
@@ -177,20 +185,20 @@ class Skeletonize:
             cube: 3D cube.
         """
         rotUS = cube.copy();
-        rotUW = self.rotate(cube, axis = 2, steps = 1);  
-        rotUN = self.rotate(cube, axis = 2, steps = 2); 
-        rotUE = self.rotate(cube, axis = 2, steps = 3);  
+        rotUW = self._rotate(cube, axis = 2, steps = 1);  
+        rotUN = self._rotate(cube, axis = 2, steps = 2); 
+        rotUE = self._rotate(cube, axis = 2, steps = 3);  
     
-        rotDS = self.rotate(cube,  axis = 1, steps = 2);
-        rotDW = self.rotate(rotDS, axis = 2, steps = 1); 
-        rotDN = self.rotate(rotDS, axis = 2, steps = 2); 
-        rotDE = self.rotate(rotDS, axis = 2, steps = 3);
+        rotDS = self._rotate(cube,  axis = 1, steps = 2);
+        rotDW = self._rotate(rotDS, axis = 2, steps = 1); 
+        rotDN = self._rotate(rotDS, axis = 2, steps = 2); 
+        rotDE = self._rotate(rotDS, axis = 2, steps = 3);
     
-        rotSW = self.rotate(cube, axis = 1, steps = 1);   
-        rotSE = self.rotate(cube, axis = 1, steps = 3); 
+        rotSW = self._rotate(cube, axis = 1, steps = 1);   
+        rotSE = self._rotate(cube, axis = 1, steps = 3); 
     
-        rotNW = self.rotate(rotUN, axis = 1, steps = 1);
-        rotNE = self.rotate(rotUN, axis = 1, steps = 3);
+        rotNW = self._rotate(rotUN, axis = 1, steps = 1);
+        rotNE = self._rotate(rotUN, axis = 1, steps = 3);
         
         return [rotUS, rotNE, rotDW,  rotSE, rotUW, rotDN,  rotSW, rotUN, rotDE,  rotNW, rotUE, rotDS]
   
@@ -414,7 +422,8 @@ def main():
     # palagyi subcommand
     p_pal = sub.add_parser("palagyi", help="Palagyi thinning")
     p_pal.add_argument("--input", type=Path, required=True)
-    p_pal.add_argument("--templates", type=Path, required=True)
+    p_pal.add_argument("--templates", type=Path, default=None,
+                       help="PK12.npy lookup table (default: the copy bundled with the package)")
     p_pal.add_argument("--output", type=Path, required=True)
 
     # kerautret subcommand
