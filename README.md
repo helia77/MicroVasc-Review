@@ -194,6 +194,9 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
   * Usage:
 
     ```bash
+    # Make the OFF mesh from a binarized volume (marching cubes)
+    python -c "from manage_data.manage_data import npy2off; npy2off('path/to/binary.npy', 'path/to/mesh.off')"
+
     skeleton kerautret \
       --input path/to/mesh.off \
       --output path/to/out/tree \

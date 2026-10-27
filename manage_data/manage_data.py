@@ -179,6 +179,41 @@ def npy2obj(input_file, output_name, level=0.0):
         for face in faces:
             f.write(f'f {face[0]+1} {face[1]+1} {face[2]+1}\n')
 
+def npy2off(input_file, output_name, level=0.5):
+    """
+    Convert a binarized volume to a surface mesh in OFF format (input of the Kerautret method).
+
+    The mesh comes from marching cubes on the binarized volume, as described in the paper.
+    The paper does not give the exact mesh settings.
+
+    Args:
+        input_file (str, Path or np.ndarray): Input numpy array or .npy file path.
+        output_name (str or Path): Output OFF file path.
+        level (float): Level for marching cubes. 0.5 (default) for 0/1 volumes.
+
+    Returns:
+        tuple: Number of vertices and faces written.
+    """
+    if isinstance(input_file, np.ndarray):
+        volume = input_file
+    elif isinstance(input_file, (str, os.PathLike)):
+        volume = np.load(input_file)
+    else:
+        raise ValueError("Input must be a numpy array or file path.")
+
+    # marching cubes
+    verts, faces, _, _ = ski.measure.marching_cubes(volume, level=level)
+
+    # OFF face indices are 0-based
+    with open(output_name, 'w') as f:
+        f.write('OFF\n')
+        f.write(f'{len(verts)} {len(faces)} 0\n')
+        for v in verts:
+            f.write(f'{v[0]} {v[1]} {v[2]}\n')
+        for face in faces:
+            f.write(f'3 {face[0]} {face[1]} {face[2]}\n')
+    return len(verts), len(faces)
+
 # convert SDP files (created by skelet_kerautret function) to one OBJ file for visualization 
 def sdp2obj(input_file):
     """
