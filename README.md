@@ -119,7 +119,7 @@ Other directories:
 * **U-Net**: [https://github.com/MrMras/CNN](https://github.com/MrMras/CNN)
 * **nnU-Net**: [https://github.com/MIC-DKFZ/nnunet](https://github.com/MIC-DKFZ/nnunet)
 * **Lee Thinning**: [https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py](https://github.com/scikit-image)
-* **Palagyi Thinning**: [https://github.com/ClearAnatomics/ClearMap](https://github.com/ClearAnatomics/ClearMap)
+* **Palagyi Thinning**: K. Palagyi and A. Kuba, A Parallel 3D 12-Subiteration Thinning Algorithm, Graphical Models and Image Processing 61, 199-221, 1999. [https://doi.org/10.1006/gmip.1999.0498](https://doi.org/10.1006/gmip.1999.0498)
 * **Kerautret Centerline**: [https://github.com/kerautret/CDCVAM](https://github.com/kerautret/CDCVAM)
 * **Kline Centerline**: [https://github.com/TLKline/poreture](https://github.com/TLKline/poreture)
 * **Starlab MCF Skeletonization**: [https://github.com/taiya/starlab-mcfskel](https://github.com/taiya/starlab-mcfskel)
