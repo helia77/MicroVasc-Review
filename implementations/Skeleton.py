@@ -11,10 +11,6 @@ import skimage.morphology as mph
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
 
 class Skeletonize:
     """
@@ -356,6 +352,10 @@ class Skeletonize:
     
     
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     parser = argparse.ArgumentParser("3D Skeleton CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
