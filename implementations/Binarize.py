@@ -4,14 +4,10 @@ import logging
 import argparse
 import numpy as np
 from pathlib import Path
-import scipy.ndimage.filters as filters
+import scipy.ndimage as ndi
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
 
 class Binarizer:
     """
@@ -51,31 +47,24 @@ class Binarizer:
         thr = centers[:-1][np.argmax(sigma_b)]
         return thr
 
-    def otsu3d(self) -> np.ndarray:
-        """
-        3D Otsu's thresholding.
-        """   
-        thr = self._compute_threshold()
+    def _otsu3d(self, vol: np.ndarray, background: str) -> np.ndarray:
+        thr = self._compute_threshold(data=vol)
         logger.info("Otsu threshold: %.3f", thr)
 
-        if self.background == 'black':
-            mask = (self.volume >= thr)
-        elif self.background == 'white':
-            mask = (self.volume <= thr)
-            
+        if background == 'black':
+            mask = (vol >= thr)
+        elif background == 'white':
+            mask = (vol <= thr)
+
         logger.info("Completed 3D Otsu binarization.")
         return mask.astype(np.uint8)
-    
-    def otsu2d(self) -> np.ndarray:
-        """
-        Slice-by-slice Otsu thresholding.
-        """
+
+    def _otsu2d(self, vol: np.ndarray, background: str) -> np.ndarray:
         out = []
-        vol = self.volume
         for i in range(vol.shape[0]):
             slice_ = vol[i]
             t = self._compute_threshold(data=slice_)
-            if self.background == "black":
+            if background == "black":
                 mask = slice_ >= t
             else:
                 mask = slice_ <= t
@@ -83,7 +72,30 @@ class Binarizer:
         result = np.stack(out, axis=0)
         logger.info("Completed 2D Otsu binarization.")
         return result.astype(np.uint8)
-    
+
+    def otsu3d(self) -> np.ndarray:
+        """
+        3D Otsu's thresholding.
+        """
+        return self._otsu3d(self.volume, self.background)
+
+    def otsu2d(self) -> np.ndarray:
+        """
+        Slice-by-slice Otsu thresholding.
+        """
+        return self._otsu2d(self.volume, self.background)
+
+    def _threshold_vesselness(self, vesselness: np.ndarray, threshold: Optional[str]) -> Optional[np.ndarray]:
+        """
+        Binarize a vesselness map with Otsu. Vesselness is bright on black, whatever the input background.
+        Returns None when no threshold is requested.
+        """
+        if threshold == 'otsu2d':
+            return self._otsu2d(vesselness, 'black')
+        if threshold == 'otsu3d':
+            return self._otsu3d(vesselness, 'black')
+        return None
+
     def _hessian(self, scale: float):
         """
         Compute the Hessian mask at a given scale.
@@ -100,12 +112,12 @@ class Binarizer:
         Hzy = np.zeros((X, Y, Z))
         
         # convolving image with Gaussian derivatives - including Hxx, Hxy, Hyy
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (0, 0, 2), Hxx)
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (0, 1, 1), Hxy)
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (0, 2, 0), Hyy)
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (2, 0, 0), Hzz)
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (1, 0, 1), Hxz)
-        filters.gaussian_filter(self.volume, (scale, scale, scale), (1, 1, 0), Hzy)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (0, 0, 2), Hxx)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (0, 1, 1), Hxy)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (0, 2, 0), Hyy)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (2, 0, 0), Hzz)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (1, 0, 1), Hxz)
+        ndi.gaussian_filter(self.volume, (scale, scale, scale), (1, 1, 0), Hzy)
         
         # scale normalization (gamma factor = 2)
         s2 = scale * scale
@@ -196,15 +208,11 @@ class Binarizer:
         # stack filters and compute maximum vesselness
         stacked_filters = np.stack(all_filters, axis=-1)
         vesselness = np.max(stacked_filters, axis=-1)
-        self.background = 'black'
 
-        if threshold == 'otsu2d':
-            self.volume = vesselness
-            return self.otsu2d()
-        if threshold == 'otsu3d':
-            self.volume = vesselness
-            return self.otsu3d()
-        
+        mask = self._threshold_vesselness(vesselness, threshold)
+        if mask is not None:
+            return mask
+
         logger.info("Frangi filter completed.")
         return vesselness
 
@@ -263,15 +271,11 @@ class Binarizer:
         # stack filters and compute maximum vesselness
         stacked_filters = np.stack(all_filters, axis=-1)
         output = np.max(stacked_filters, axis=-1)
-        self.background = 'black'
 
-        if threshold == 'otsu2d':
-            self.volume = output
-            return self.otsu2d()
-        if threshold == 'otsu3d':
-            self.volume = output
-            return self.otsu3d()
-        
+        mask = self._threshold_vesselness(output, threshold)
+        if mask is not None:
+            return mask
+
         logger.info("Beyond Frangi filter completed.")
         return output
 
@@ -291,7 +295,7 @@ def parse_args() -> argparse.Namespace:
     # vesselness filters
     vessel = argparse.ArgumentParser(add_help=False)
     vessel.add_argument('--scale', nargs='+', type=float, required=True)
-    vessel.add_argument('--th', choices=["otus2d", "otsu3d"], type=str, default=None, help="Optional thresholding technique.")
+    vessel.add_argument('--th', choices=["otsu2d", "otsu3d"], type=str, default=None, help="Optional thresholding technique.")
 
     fr = sub.add_parser('frangi', parents=[parent, vessel], help="Frangi Filter")
     fr.add_argument('--params', nargs=3, type=float, metavar=('alpha', 'beta', 'c'), required=True)
@@ -317,6 +321,10 @@ def main():
         python binarize.py otsu3d --input in.npy --output out.npy --background white
 
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     args = parse_args()
     vol = np.load(args.input)
     binzr = Binarizer(vol, background=args.background)
