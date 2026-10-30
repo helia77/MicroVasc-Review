@@ -1,4 +1,5 @@
 import os
+import itertools
 import logging
 import argparse
 import subprocess
@@ -7,7 +8,7 @@ import scipy.ndimage as ndi
 from manage_data import manage_data as md
 from pathlib import Path
 import skimage.morphology as mph
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -21,6 +22,10 @@ class Skeletonize:
     """
     # Palagyi lookup table shipped with the package
     DEFAULT_TEMPLATES = Path(__file__).with_name("PK12.npy")
+    # Palagyi: the 12 deletion directions in the paper's order, and the six major directions
+    # (axis 0 east, axis 1 north, axis 2 up)
+    _DIRECTIONS = ("US", "NE", "WD", "ES", "UW", "ND", "SW", "UN", "ED", "NW", "UE", "SD")
+    _UNIT = {"E": (1, 0, 0), "W": (-1, 0, 0), "N": (0, 1, 0), "S": (0, -1, 0), "U": (0, 0, 1), "D": (0, 0, -1)}
     
         
     def lee(self, volume: np.ndarray) -> np.ndarray:
@@ -42,15 +47,19 @@ class Skeletonize:
     
     
     def palagyi(self, volume: np.ndarray, templates_path: Optional[Path] = None) -> np.ndarray:
-        """ 
-        3D thinning via Palágyi's method (12-subiteration).
-        -> Based on ClearMap2 (@author: ChristophKirst)
-        -> License notice for the ClearMap Topology3d parts: see THIRD_PARTY_NOTICES.md
+        """
+        3D thinning via Palágyi's method (12-subiteration curve thinning).
 
-        Requires: 
-            "PK12.npy" file, contatinig the 14-templates.
-            Defaults to the PK12.npy bundled next to this file.
-        
+        Requires:
+            "PK12.npy" lookup table of the deletion templates T1-T14 (direction US).
+            Defaults to the PK12.npy bundled next to this file. tests/build_pk12_table.py
+            rebuilds it from the templates of the paper.
+
+        Axis 0 points east, axis 1 north and axis 2 up. Each iteration runs 12 subiterations
+        in the order US, NE, WD, ES, UW, ND, SW, UN, ED, NW, UE, SD and deletes all matching
+        points of a subiteration together. Voxels outside the volume count as white.
+        Border points are found once per iteration and reused in all 12 subiterations; the paper re-checks every point in each subiteration.
+
         References:
         .. [Palagy1999] Palagyi & Kuba, A Parallel 3D 12-Subiteration Thinning Algorithm,
             Graphical Models and Image Processing 61, 199-221 (1999).
@@ -58,150 +67,51 @@ class Skeletonize:
         Returns:
             uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
         """
-        logger.info("Running Palágyi's thinning.")
-        binary = (volume > 0).astype(np.uint8)
-        # extract indices vessel points in the input
-        points_arg = np.argwhere(binary)
-        if templates_path is None:
-            templates_path = self.DEFAULT_TEMPLATES
-        deletable = np.load(templates_path)
-        
-        # create an array with base 2 numbers on the cube for convolution and LUT matching, default center is 0
-        cube = np.zeros((3,3,3), dtype=int);
-        k = 0;
-        for z in range(3):
-          for y in range(3):
-            for x in range(3):
-              if x == 1 and y ==1 and z == 1:
-                cube[x,y,z] = 0;
-              else:
-                cube[x, y, z] = 2**k;
-                k+=1;
-        
-        rotations = self._rotations12(cube)
-        
-        # the 6-Neighborhood excluding center
-        n6 = np.array([[[0,0,0],[0,1,0],[0,0,0]],
-                    [[0,1,0],[1,0,1],[0,1,0]], 
-                    [[0,0,0],[0,1,0],[0,0,0]]]);
-        
-                
-        # Border point definition: a black point is a border point if its N_6 neighborhood has at least one white point
+        table = np.load(self.DEFAULT_TEMPLATES if templates_path is None else templates_path)
+        if table.shape != (2 ** 26,):
+            raise ValueError(f"The lookup table must have 2^26 entries, got shape {table.shape}")
+        logger.info("Running Palagyi's thinning.")
+
+        padded = np.pad(volume > 0, 1).astype(np.uint8)
+        x = padded.reshape(-1)                                      # flat view of padded
+        strides = np.array(padded.strides) // padded.itemsize
+        six = np.concatenate([strides, -strides])
+        offsets = [self._direction_offsets(d, strides) for d in self._DIRECTIONS]
+        weights = 1 << np.arange(26, dtype=np.int64)
+
         while True:
-            # Find which black points are border points 
-            # the index of the border varibale is the same as black points in point_arg
-            border = self._convolution3d(binary, n6, points_arg) < 6
-            border_points = points_arg[border]
-            border_ids = np.nonzero(border)[0]
-            keep = np.ones(len(border), dtype=bool)
-            
-            iterat = 0
-            for i in range(12):         # 12 sub-iterations
-                removables = self._convolution3d(binary, rotations[i], border_points)
-                rem_borders = deletable[removables]
-                rem_points = border_points[rem_borders]
-                
-                binary[rem_points[:, 0], rem_points[:, 1], rem_points[:, 2]] = 0
-                keep[border_ids[rem_borders]] = False
-                
-                iterat += len(rem_points)
-            
-            # update foreground
-            points_arg = points_arg[keep]
-            if iterat == 0:
+            points = np.flatnonzero(x)
+            border = points[(x[points[:, None] + six] == 0).any(axis=1)]
+            deleted = 0
+            for flat in offsets:
+                border = border[x[border] == 1]                     # skip points deleted earlier
+                index = x[border[:, None] + flat] @ weights
+                remove = border[table[index]]
+                x[remove] = 0
+                deleted += remove.size
+            if deleted == 0:
                 break
-        
-        return binary
-    
-    def _convolution3d(self, volume: np.ndarray, kernel: np.ndarray, points: np.ndarray) -> np.ndarray:
+
+        return padded[1:-1, 1:-1, 1:-1].copy()
+
+    def _direction_offsets(self, direction: str, strides: np.ndarray) -> np.ndarray:
         """
-        Perform 3D convolution at specific points.
+        Flat offsets of the 26 neighbors, in lookup table bit order, for one deletion direction.
+
+        The table holds the templates of direction US. Bit k is the k-th neighbor (u, n, e) in
+        C order over {-1, 0, 1}^3, center skipped. For direction XY, the rotation that sends U
+        to X and S to Y gives each (u, n, e) its offset in the volume.
 
         Args:
-            input_data: 3D volume.
-            kernel: Convolution kernel.
-            point: Points to perform convolution on.
+            direction: Two letters from U, D, N, S, E, W, e.g. "NE".
+            strides: Strides of the padded volume, in elements.
         """
-        num_points = points.shape[0]
-        output = np.zeros(num_points, dtype=kernel.dtype)
-        
-        dk, dj, di = volume.shape
-        
-        for n in range(num_points):
-            z, y, x = points[n]
-            
-            for k in range(3):
-                zk = z + k - 1
-                if zk < dk and zk >= 0:
-                    for j in range(3):
-                        yj = y + j - 1
-                        if yj < dj and yj >= 0:
-                            for i in range(3):
-                                xi = x + i - 1
-                                if xi < di and xi >= 0:        
-                                    output[n] += volume[zk, yj, xi] * kernel[k, j, i]
-        return output
-    
-    def _rotate(self, volume: np.ndarray, axis: int = 2, steps: int = 0) -> np.ndarray:
-        """
-        Rotate a cube around an axis in 90-degree steps.
-
-        Args:
-            input_data: 3D cube.
-            axis: Axis of rotation (0: x, 1: y, 2: z).
-            steps: Number of 90-degree steps to rotate.
-        """
-        cube = volume.copy();  
-        steps = steps % 4;
-        if steps == 0:
-            return cube;
-        
-        if axis == 0:
-            if steps == 1:
-                return cube[:, ::-1, :].swapaxes(1, 2)
-            elif steps == 2:    # rotate 180 degrees around x
-                return cube[:, ::-1, ::-1]
-            elif steps == 3:    # rotate 270 degrees around x
-                return cube.swapaxes(1, 2)[:, ::-1, :]
-        elif axis == 1:
-            if steps == 1:
-                return cube[:, :, ::-1].swapaxes(2, 0)
-            elif steps == 2:    # rotate 180 degrees around x
-                return cube[::-1, :, ::-1]
-            elif steps == 3:    # rotate 270 degrees around x
-                return cube.swapaxes(2, 0)[:, :, ::-1]
-        elif axis == 2:         # z axis rotation
-            if steps == 1:
-                return cube[::-1, :, :].swapaxes(0, 1)
-            elif steps == 2:    # rotate 180 degrees around z
-                return cube[::-1, ::-1, :]
-            elif steps == 3:    # rotate 270 degrees around z
-                return cube.swapaxes(0, 1)[::-1, :, :]
-
-    def _rotations12(self, cube: np.ndarray) -> List[np.ndarray]:
-        """
-        Generate rotations in 12 diagonal directions.
-
-        Args:
-            cube: 3D cube.
-        """
-        rotUS = cube.copy();
-        rotUW = self._rotate(cube, axis = 2, steps = 1);  
-        rotUN = self._rotate(cube, axis = 2, steps = 2); 
-        rotUE = self._rotate(cube, axis = 2, steps = 3);  
-    
-        rotDS = self._rotate(cube,  axis = 1, steps = 2);
-        rotDW = self._rotate(rotDS, axis = 2, steps = 1); 
-        rotDN = self._rotate(rotDS, axis = 2, steps = 2); 
-        rotDE = self._rotate(rotDS, axis = 2, steps = 3);
-    
-        rotSW = self._rotate(cube, axis = 1, steps = 1);   
-        rotSE = self._rotate(cube, axis = 1, steps = 3); 
-    
-        rotNW = self._rotate(rotUN, axis = 1, steps = 1);
-        rotNE = self._rotate(rotUN, axis = 1, steps = 3);
-        
-        return [rotUS, rotNE, rotDW,  rotSE, rotUW, rotDN,  rotSW, rotUN, rotDE,  rotNW, rotUE, rotDS]
+        up = np.array(self._UNIT[direction[0]])
+        north = -np.array(self._UNIT[direction[1]])
+        east = np.cross(north, up)
+        neighbors = [u * up + n * north + e * east
+                     for u, n, e in itertools.product((-1, 0, 1), repeat=3) if (u, n, e) != (0, 0, 0)]
+        return np.array(neighbors) @ strides
   
     def kerautret(self, exe_path: Path, off_input: Path, output_path: Path, 
                   dilateDist: Optional[float]=2.0, deltaG: Optional[float]=3.0, radius: Optional[float]=10.0, threshold: Optional[float]=0.5):
