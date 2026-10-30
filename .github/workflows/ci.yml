@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}, scikit-fmm ${{ matrix.scikit-fmm }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+        scikit-fmm: ["with", "without"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install with scikit-fmm
+        if: matrix.scikit-fmm == 'with'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test,kline]"
+          python -c "import skfmm"
+
+      - name: Install without scikit-fmm
+        if: matrix.scikit-fmm == 'without'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+          python -c "import importlib.util, sys; sys.exit(importlib.util.find_spec('skfmm') is not None)"
+
+      # kline tests are skipped without scikit-fmm; -ra lists the skips
+      - name: Run tests
+        run: python -m pytest -ra
