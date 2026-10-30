@@ -158,6 +158,14 @@ class Binarizer:
         
         return H, T
     
+    def _sort_by_magnitude(self, lambdas: np.ndarray) -> np.ndarray:
+        """
+        Sort eigenvalues (n, 3) by |lambda| along the last axis. The sort is stable,
+        like sorted(key=abs), so equal magnitudes keep the order of np.linalg.eigvalsh.
+        """
+        order = np.argsort(np.abs(lambdas), axis=-1, kind="stable")
+        return np.take_along_axis(lambdas, order, axis=-1)
+
     def frangi(self, alpha: float, beta: float, c: float, scale_range: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
         Frangi (aka. vesselness) filter for 3D tubular enhancement.
@@ -178,31 +186,33 @@ class Binarizer:
             H, T = self._hessian(scale)
             # eigendecomposition
             lambdas = np.linalg.eigvalsh(H)
-            idx = np.argwhere(T == 1)
             V0 = np.zeros_like(self.volume, dtype=np.float64)
-                
-            for arg in idx:
-                i, j, k = arg
-                l1, l2, l3 = sorted(lambdas[i, j, k], key=abs)
-                if self.background == 'white' and (l2 < 0 or l3 < 0):
-                    continue
-                elif self.background == 'black' and (l2 > 0 or l3 > 0):
-                    continue
-                
-                if (l3 == 0):
-                    l3 = math.nextafter(0,1)
-                if (l2 == 0):
-                    l2 = math.nextafter(0,1)
-                
-                Rb2 = (l1**2)/(l2 * l3)
-                Ra2 = (l2**2) / (l3**2)
-                S2 = (l1**2) + (l2**2) + (l3**2)
-                    
-                term1 = math.exp(-Ra2 / alpha2)
-                term2 = math.exp(-Rb2 / beta2)
-                term3 = math.exp(-S2 / c2)
-                V0[i, j, k] = (1.0 - term1) * (term2) * (1.0 - term3)
-                
+
+            # eigenvalues of the voxels with T == 1, sorted by |lambda|
+            l1, l2, l3 = self._sort_by_magnitude(lambdas[T == 1]).T
+            # bright vessels need l2, l3 <= 0 (black background), dark vessels l2, l3 >= 0
+            if self.background == 'white':
+                keep = ~((l2 < 0) | (l3 < 0))
+            else:
+                keep = ~((l2 > 0) | (l3 > 0))
+            l1, l2, l3 = l1[keep], l2[keep], l3[keep]
+
+            l3 = np.where(l3 == 0, math.nextafter(0, 1), l3)
+            l2 = np.where(l2 == 0, math.nextafter(0, 1), l2)
+
+            # float_power calls pow like the per-voxel code did (array ** 2 uses x * x, which can differ in the last bit)
+            sq1, sq2, sq3 = np.float_power(l1, 2), np.float_power(l2, 2), np.float_power(l3, 2)
+            Rb2 = sq1 / (l2 * l3)
+            Ra2 = sq2 / sq3
+            S2 = sq1 + sq2 + sq3
+
+            term1 = np.exp(-Ra2 / alpha2)
+            term2 = np.exp(-Rb2 / beta2)
+            term3 = np.exp(-S2 / c2)
+            values = np.zeros(keep.size)
+            values[keep] = (1.0 - term1) * (term2) * (1.0 - term3)
+            V0[T == 1] = values
+
             all_filters.append(V0)
         
         # stack filters and compute maximum vesselness
@@ -234,38 +244,29 @@ class Binarizer:
             
             # eigendecomposition
             lambdas = np.linalg.eigvalsh(H)
-            idx = np.argwhere(T == 1)
             V0 = np.zeros_like(self.volume, dtype=np.float64)
-            for arg in idx:
-                # sort the eigenvalues
-                i, j, k = arg
-                lambdas[i, j, k] = sorted(lambdas[i, j, k], key=abs)
-            
+            # sort the eigenvalues of the voxels with T == 1 by |lambda|
+            lambdas[T == 1] = self._sort_by_magnitude(lambdas[T == 1])
+
             # find the maximum lambda3 across the volume with scale s
             max_l3 = np.max(abs(lambdas[:, :, :, 2]))
-            for arg in idx:
-                i, j, k = arg
-                _, l2, l3 = lambdas[i, j, k]        # no need for lambda1
-                
-                if self.background == 'black':
-                    l2 = -l2
-                    l3 = -l3
-                
-                # calculate lambda rho
-                reg_term = tau * max_l3             # regularized term
-                l_rho = l3
-                if l3 > 0 and l3 < reg_term:
-                    l_rho = reg_term
-                elif l3 <= 0:
-                    l_rho = 0
-                    
-                # modified vesselness (Beyond Frangi) function
-                V0[i, j, k] = (l2**2) * (l_rho - l2) * 27 / ((l2 + l_rho) ** 3)
-                if l2 >= (l_rho/2) and l_rho > 0:
-                    V0[i, j, k] = 1
-                elif l2 <= 0 or l_rho <= 0:
-                    V0[i, j, k] = 0
-                
+            _, l2, l3 = lambdas[T == 1].T           # no need for lambda1
+
+            if self.background == 'black':
+                l2 = -l2
+                l3 = -l3
+
+            # calculate lambda rho
+            reg_term = tau * max_l3                 # regularized term
+            l_rho = np.where((l3 > 0) & (l3 < reg_term), reg_term, np.where(l3 <= 0, 0.0, l3))
+
+            # modified vesselness (Beyond Frangi) function
+            # float_power calls pow like the per-voxel code did (array ** 2 uses x * x, which can differ in the last bit)
+            values = np.float_power(l2, 2) * (l_rho - l2) * 27 / np.float_power(l2 + l_rho, 3)
+            values = np.where((l2 >= (l_rho/2)) & (l_rho > 0), 1.0,
+                              np.where((l2 <= 0) | (l_rho <= 0), 0.0, values))
+            V0[T == 1] = values
+
             all_filters.append(V0)
         
         # stack filters and compute maximum vesselness
