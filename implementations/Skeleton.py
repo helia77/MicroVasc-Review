@@ -45,6 +45,7 @@ class Skeletonize:
         """ 
         3D thinning via Palágyi's method (12-subiteration).
         -> Based on ClearMap2 (@author: ChristophKirst)
+        -> License notice for the ClearMap Topology3d parts: see THIRD_PARTY_NOTICES.md
 
         Requires: 
             "PK12.npy" file, contatinig the 14-templates.

@@ -226,3 +226,5 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
     | KESM     | 1.0             | 3.3         | 1.1        | 0.5           |
     | LSFM     | 1.0             | 3.1         | 0.7        | 0.5           |
     | micro-CT | 1.1             | 2.75        | 0.8        | 0.6           |
+
+    Values are as used in the paper, in the coordinate units of the input mesh.
