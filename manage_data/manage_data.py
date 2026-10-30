@@ -389,7 +389,7 @@ class NWT:
             v = np.fromfile(fid, np.uint32, 2)                          #load the vertex indices that this edge connects            
             npts = struct.unpack("I", fid.read(4))[0]                   #read the number of points defining this edge            
             pv = np.fromfile(fid, np.float32, 4*npts)                   #read the array of points            
-            p = [(pv[i],pv[i+1]) for i in range(0,npts,2)]              #conver the point values to an array of 4-element tuples            
+            p = [tuple(pv[i:i+4]) for i in range(0, 4*npts, 4)]         #group the values into (x, y, z, radius) tuples
             self.e.append(edge(v[0], v[1], p))                          #create and append the edge to the edge list
     
     def load_obj(self, filename):
