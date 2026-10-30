@@ -7,7 +7,9 @@ template of T_US, where bit k of i is the value of the neighbor at BIT_OFFSETS[k
 All 2^26 neighborhoods are checked.
 
     python tests/build_pk12_table.py                  # compare only
-    python tests/build_pk12_table.py --output PK12.npy
+    python tests/build_pk12_table.py --output implementations/PK12.npz
+
+The table is saved as packed bits (np.packbits) under "pk12" in a compressed .npz file.
 
 Exits with status 1 if any entry differs from the bundled table.
 """
@@ -59,22 +61,21 @@ def build_table(chunk_bits=22):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--output", type=Path, default=None, help="Save the built table to this .npy file.")
+    parser.add_argument("--output", type=Path, default=None, help="Save the built table to this .npz file.")
     args = parser.parse_args()
 
     from implementations.Skeleton import Skeletonize
 
     table = build_table()
-    bundled = np.load(Skeletonize.DEFAULT_TEMPLATES)
     print(f"built:   {table.size} entries, {int(table.sum())} deletable, "
           f"data sha256 {hashlib.sha256(table.tobytes()).hexdigest()}")
-    print(f"bundled: {bundled.size} entries, {int(bundled.sum())} deletable, "
-          f"data sha256 {hashlib.sha256(bundled.tobytes()).hexdigest()} ({Skeletonize.DEFAULT_TEMPLATES})")
-
     if args.output is not None:
-        np.save(args.output, table)
+        np.savez_compressed(args.output, pk12=np.packbits(table))
         print(f"saved to {args.output}")
 
+    bundled = Skeletonize()._load_table(Skeletonize.DEFAULT_TEMPLATES)
+    print(f"bundled: {bundled.size} entries, {int(bundled.sum())} deletable, "
+          f"data sha256 {hashlib.sha256(bundled.tobytes()).hexdigest()} ({Skeletonize.DEFAULT_TEMPLATES})")
     if bundled.dtype != table.dtype or bundled.shape != table.shape:
         print(f"bundled table has dtype {bundled.dtype} and shape {bundled.shape}, "
               f"expected {table.dtype} and {table.shape}")

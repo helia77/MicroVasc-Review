@@ -17,7 +17,7 @@ class Skeletonize:
     Wraps multiple 3D skeletonization algorithms.
     """
     # Palagyi lookup table shipped with the package
-    DEFAULT_TEMPLATES = Path(__file__).with_name("PK12.npy")
+    DEFAULT_TEMPLATES = Path(__file__).with_name("PK12.npz")
     # Palagyi: the 12 deletion directions in the paper's order, and the six major directions
     # (axis 0 east, axis 1 north, axis 2 up)
     _DIRECTIONS = ("US", "NE", "WD", "ES", "UW", "ND", "SW", "UN", "ED", "NW", "UE", "SD")
@@ -47,9 +47,9 @@ class Skeletonize:
         3D thinning via Palágyi's method (12-subiteration curve thinning).
 
         Requires:
-            "PK12.npy" lookup table of the deletion templates T1-T14 (direction US).
-            Defaults to the PK12.npy bundled next to this file. tests/build_pk12_table.py
-            rebuilds it from the templates of the paper.
+            "PK12.npz" lookup table of the deletion templates T1-T14 (direction US).
+            Defaults to the PK12.npz bundled next to this file. tests/build_pk12_table.py
+            rebuilds it from the templates of the paper. A bool .npy table also works.
 
         Axis 0 points east, axis 1 north and axis 2 up. Each iteration runs 12 subiterations
         in the order US, NE, WD, ES, UW, ND, SW, UN, ED, NW, UE, SD and deletes all matching
@@ -63,9 +63,7 @@ class Skeletonize:
         Returns:
             uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
         """
-        table = np.load(self.DEFAULT_TEMPLATES if templates_path is None else templates_path)
-        if table.shape != (2 ** 26,):
-            raise ValueError(f"The lookup table must have 2^26 entries, got shape {table.shape}")
+        table = self._load_table(self.DEFAULT_TEMPLATES if templates_path is None else templates_path)
         logger.info("Running Palagyi's thinning.")
 
         padded = np.pad(volume > 0, 1).astype(np.uint8)
@@ -89,6 +87,23 @@ class Skeletonize:
                 break
 
         return padded[1:-1, 1:-1, 1:-1].copy()
+
+    def _load_table(self, path: Path) -> np.ndarray:
+        """
+        Load the Palagyi lookup table as a bool array of 2^26 entries.
+
+        Args:
+            path: .npz file with the table as packed bits under "pk12" (np.packbits order),
+                or .npy file with the bool table.
+        """
+        if Path(path).suffix == ".npz":
+            with np.load(path) as data:
+                table = np.unpackbits(data["pk12"], count=2 ** 26).astype(bool)
+        else:
+            table = np.load(path).astype(bool)
+        if table.shape != (2 ** 26,):
+            raise ValueError(f"The lookup table must have 2^26 entries, got shape {table.shape}")
+        return table
 
     def _direction_offsets(self, direction: str, strides: np.ndarray) -> np.ndarray:
         """
@@ -368,7 +383,7 @@ def main():
     p_pal = sub.add_parser("palagyi", help="Palagyi thinning")
     p_pal.add_argument("--input", type=Path, required=True)
     p_pal.add_argument("--templates", type=Path, default=None,
-                       help="PK12.npy lookup table (default: the copy bundled with the package)")
+                       help="PK12.npz lookup table (default: the copy bundled with the package)")
     p_pal.add_argument("--output", type=Path, required=True)
 
     # kerautret subcommand

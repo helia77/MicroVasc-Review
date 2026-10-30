@@ -48,7 +48,7 @@ include = ["implementations*", "manage_data*", "metrics*", "optimization*"]
 
 [tool.setuptools.package-data]
 # Palagyi thinning lookup table, used by `skeleton palagyi` when --templates is not given
-implementations = ["PK12.npy"]
+implementations = ["PK12.npz"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

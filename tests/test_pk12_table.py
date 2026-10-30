@@ -1,20 +1,19 @@
 import hashlib
 
-import numpy as np
-
 from build_pk12_table import build_table
 from implementations.Skeleton import Skeletonize
 
-# SHA-256 of the bundled implementations/PK12.npy file
-PK12_SHA256 = "279a101101729ba3480fb67ecd15a0d6d3aaf000248440a681d7c9fad278054a"
+# SHA-256 of the unpacked lookup table (2^26 bool entries) in implementations/PK12.npz
+PK12_DATA_SHA256 = "5eeaee537c85ca95643cbf61c5e28e5023ff59f72ac46128453d82c1f80fc1a8"
 
 
-def test_bundled_table_file_is_unchanged():
-    assert hashlib.sha256(Skeletonize.DEFAULT_TEMPLATES.read_bytes()).hexdigest() == PK12_SHA256
+def test_bundled_table_data_is_unchanged():
+    table = Skeletonize()._load_table(Skeletonize.DEFAULT_TEMPLATES)
+    assert hashlib.sha256(table.tobytes()).hexdigest() == PK12_DATA_SHA256
 
 
 def test_templates_rebuild_bundled_table():
-    bundled = np.load(Skeletonize.DEFAULT_TEMPLATES)
+    bundled = Skeletonize()._load_table(Skeletonize.DEFAULT_TEMPLATES)
     table = build_table()
     assert table.dtype == bundled.dtype and table.shape == bundled.shape
-    assert np.count_nonzero(table != bundled) == 0
+    assert (table != bundled).sum() == 0
