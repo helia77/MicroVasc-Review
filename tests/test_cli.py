@@ -51,6 +51,29 @@ def test_skeleton_palagyi(tmp_path, templates):
     np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonize().palagyi(mask))
 
 
+def test_skeleton_kline(tmp_path):
+    pytest.importorskip("skfmm")
+    mask = synthetic.tube_mask().astype(np.uint8)
+    np.save(tmp_path / "in.npy", mask)
+    result = run("-m", "implementations.Skeleton", "kline",
+                 "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"),
+                 "--root", "3", "5", "2", "--dmw", "6", "--mbtr", "10")
+    assert result.returncode == 0, result.stderr
+    out = np.load(tmp_path / "out.npy")
+    assert out.dtype == np.uint8
+    np.testing.assert_array_equal(out, Skeletonize().kline(mask, (3, 5, 2), dmw=6, mbtr=10))
+
+
+def test_skeleton_kline_bad_root(tmp_path):
+    np.save(tmp_path / "in.npy", synthetic.tube_mask().astype(np.uint8))
+    result = run("-m", "implementations.Skeleton", "kline",
+                 "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"),
+                 "--root", "0", "23", "0")
+    assert result.returncode != 0
+    assert "not on a vessel voxel" in result.stderr
+    assert not (tmp_path / "out.npy").exists()
+
+
 def test_skeleton_kerautret(tmp_path, fake_cdcvam):
     exe, read_log = fake_cdcvam
     (tmp_path / "mesh.off").write_text("OFF\n0 0 0\n")

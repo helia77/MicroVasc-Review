@@ -87,6 +87,17 @@ Other directories:
    --scale 1 2 3 4
    --th otsu3d
    ```
+
+   Kline centerline extraction (needs `pip install -e ".[kline]"`), with the root given as array indices along axes 0, 1 and 2. These are the settings used for the KESM volume in the paper:
+
+   ```bash
+   skeleton kline \
+   --input path/to/binary.npy \
+   --output path/to/centerline.npy \
+   --root 95 76 35 \
+   --dmw 19.25 \
+   --mbtr 10.11
+   ```
 <!---
 5. **Evaluate results**
 
@@ -193,15 +204,25 @@ Refer to the paper for detailed methodology, evaluation results, and discussions
     ```
   * Usage:
 
+    The input meshes in the paper were `binary_<name>.off`, made from the binarized volumes. This example uses the KESM settings from the table below:
+
     ```bash
     # Make the OFF mesh from a binarized volume (marching cubes)
-    python -c "from manage_data.manage_data import npy2off; npy2off('path/to/binary.npy', 'path/to/mesh.off')"
+    python -c "from manage_data.manage_data import npy2off; npy2off('path/to/binary_kesm.npy', 'path/to/binary_kesm.off')"
 
     skeleton kerautret \
-      --input path/to/mesh.off \
+      --input path/to/binary_kesm.off \
       --output path/to/out/tree \
       --exe-path path/to/CDCVAM/build/bin/centerLineGeodesicGraph \
-      --dilate-dist 2 --delta-g 3 --radius 10 --threshold 0.5
+      --dilate-dist 1.0 --delta-g 3.3 --radius 1.1 --threshold 0.5
     # Writes treeVertex.sdp, treeEdges.sdp, treeRadius.sdp and tree.obj in path/to/out/
     ```
     `--radius` is the accumulation distance. The paper sets it slightly larger than the radius of the largest vessels.
+
+    Settings used in the paper:
+
+    | Dataset  | `--dilate-dist` | `--delta-g` | `--radius` | `--threshold` |
+    |----------|-----------------|-------------|------------|---------------|
+    | KESM     | 1.0             | 3.3         | 1.1        | 0.5           |
+    | LSFM     | 1.0             | 3.1         | 0.7        | 0.5           |
+    | micro-CT | 1.1             | 2.75        | 0.8        | 0.6           |

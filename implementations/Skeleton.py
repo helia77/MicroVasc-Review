@@ -259,26 +259,45 @@ class Skeletonize:
         logger.info("Kerautret output at %s", obj_path)
         return obj_path
             
-    def kline(self, volume: np.ndarray, startID: Tuple[int, int, int], dmw: int=6, mbtr: int=10):
+    def kline(self, volume: np.ndarray, startID: Tuple[int, int, int], dmw: float=6, mbtr: float=10):
         """
         Kline's method.
         -> Based on https://github.com/TLKline/poreture (@author: TLKline)
+        This follows the code used for the results in the paper. Single root only.
+        poreture is under the BSD 3-clause license, see THIRD_PARTY_NOTICES.md.
         
         Args:
-            volume: Binarized volume
-            startID: Index of root, as (x,y,z) location
+            volume: Binarized volume. Any nonzero voxel is foreground.
+            startID: Index of the root voxel along axes 0, 1 and 2. It must lie on a vessel voxel.
         
-            dist_map_weight: Weight for distance map. Defaults to 6.
-            min_branch_to_root: Minimum branch length to root. Defaults to 10.
+            dmw (dist_map_weight): Weight for distance map. Defaults to 6.
+            mbtr (min_branch_to_root): Minimum Euclidean distance (in voxels) from an endpoint
+                to the root. Defaults to 10.
 
         Returns:
-            tuple: A binary numpy array containin a 1-D skeleton of the input volume
+            uint8 array of 0 and 1, same shape as the input, containing a 1-D skeleton of the input volume.
+
+        Differences from poreture's kline_vessel:
+            - Both fast marches use an all-ones speed array over the bounding box
+              (np.ones_like(phi)), and the distance map is computed from it. poreture uses
+              the vessel mask (constant_speed = B2.copy()).
+            - poreture reads cluster_graph_weight and min_branch_length but does not use them
+              in the computation. They are not parameters here.
+
         Reference:
             kline_vessel - [Kline et al. ABME 2010]
             kline_pore - [Kline et al. J Porous Mat 2011]
             
         """
-        
+        root = tuple(int(c) for c in startID)
+        if volume.ndim != 3 or len(root) != 3:
+            raise ValueError(f"kline needs a 3D volume and a root with 3 indices, got shape {volume.shape} and root {startID}")
+        if any(c < 0 or c >= n for c, n in zip(root, volume.shape)):
+            raise ValueError(f"Root {root} is outside the volume of shape {volume.shape}. "
+                             "Give array indices along axes 0, 1 and 2.")
+        if not volume[root] > 0:
+            raise ValueError(f"Root {root} is not on a vessel voxel (value {volume[root]}).")
+
         try:
             import skfmm
         except ImportError as err:
@@ -286,11 +305,11 @@ class Skeletonize:
 
         logger.info("Running Kline's method.")
 
-        # Make sure object is equal to 1, without specifying dtype, would be logical
-        B2 = np.array(volume.copy() > 0, dtype=np.uint8)
+        # Make sure object is equal to 1 (signed, so the root can be marked with -1)
+        B2 = np.array(volume.copy() > 0, dtype=np.int8)
 
         # Find 3D coordinates of volume
-        nz_coords = np.nonzero(volume)
+        nz_coords = np.nonzero(B2)
         x3, y3, z3 = [nz_coords[i].tolist() for i in range(3)]
 
         # Limit volume size
@@ -302,6 +321,7 @@ class Skeletonize:
         sz = startID[2] - np.min(z3) 
 
         # Perform first fast march to determine endpoints
+        # works on binary speed function
         phi = B2.copy()
         phi[sx,sy,sz] = -1
         constant_speed = np.ones_like(phi)
@@ -343,6 +363,7 @@ class Skeletonize:
         skel = np.zeros((B2.shape[0] + 2, B2.shape[1] + 2, B2.shape[2] + 2), dtype='uint8')
         D = skel.copy() + 1.e20
         D[1:B2.shape[0] + 1, 1:B2.shape[1] + 1, 1:B2.shape[2] + 1] = weighted_travel_time
+        D[sx+1, sy+1, sz+1] = 0
         skel[sx+1, sy+1, sz+1] = 1 # initialize root
 
         # Begin extracting skeleton
@@ -368,7 +389,7 @@ class Skeletonize:
                             for ni in range(3):
                                 for nj in range(3):
                                     for nk in range(3):
-                                        if (d_neighborhood[ni,nj,nk] < currentMin) and (skel[i+ni-1,j+nj-1,k+nk-1] != 2):
+                                        if (d_neighborhood[ni,nj,nk] < currentMin) and (np.all([ni,nj,nk]) != 1) and (skel[i+ni-1,j+nj-1,k+nk-1] != 2):
                                             ii, jj, kk = ni, nj, nk
                                             currentMin = d_neighborhood[ni, nj, nk]
                             # Update                         
@@ -382,6 +403,7 @@ class Skeletonize:
                 
 
         # shift skel and start points back to correspond with original volume
+        skel[skel == 2] = 1
         centerline_extracted = skel[1:B2.shape[0]+1, 1:B2.shape[1]+1, 1:B2.shape[2]+1]
         final_centerline = np.zeros(volume.shape, dtype=np.uint8)
         final_centerline[np.min(x3):np.max(x3)+1, np.min(y3):np.max(y3)+1, np.min(z3):np.max(z3)+1] = centerline_extracted
@@ -456,10 +478,14 @@ def main():
     p_kl = sub.add_parser("kline", help="Kline centerline extraction method")
     p_kl.add_argument("--input", type=Path, required=True)
     p_kl.add_argument(
-        "--root", type=int, nargs=3, required=True,
-        help="X Y Z index of starting point"
+        "--root", type=int, nargs=3, required=True, metavar=("I0", "I1", "I2"),
+        help="Index of the root voxel along array axes 0, 1 and 2 (must be a vessel voxel)"
     )
     p_kl.add_argument("--output", type=Path, required=True)
+    p_kl.add_argument("--dmw", type=float, default=6,
+                      help="Distance map weight (default: 6)")
+    p_kl.add_argument("--mbtr", type=float, default=10,
+                      help="Minimum distance from an endpoint to the root, in voxels (default: 10)")
 
     args = parser.parse_args()
     ske = Skeletonize()
@@ -487,7 +513,8 @@ def main():
 
     elif args.cmd == "kline":
         vol = np.load(args.input)
-        _ = ske.kline(vol, tuple(args.root))
+        out = ske.kline(vol, tuple(args.root), dmw=args.dmw, mbtr=args.mbtr)
+        np.save(args.output, out)
 
     else:
         parser.error(f"Unknown command {args.cmd}")

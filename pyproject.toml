@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "Review of Segmentation and Skeletonization Methods for Large-Scale Microvascular Networks"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Helya Goharbavang" }]
 requires-python = ">=3.9"
 dependencies = [
@@ -52,3 +52,8 @@ implementations = ["PK12.npy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # NumPy deprecations raised inside scikit-image itself (e.g. in marching_cubes);
+    # warnings attributed to this package stay visible
+    "ignore::DeprecationWarning:skimage",
+]
