@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "microvasc"
 version = "0.2.0"
-description = "Review of Segmentation and Skeletonization Methods for Large-Scale Microvascular Networks"
+description = "Segmentation and skeletonization of large-scale microvascular networks"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]

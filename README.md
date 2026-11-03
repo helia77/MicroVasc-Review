@@ -1,11 +1,7 @@
-# MicroVasc-Review
+# microvasc: segmentation and skeletonization of large-scale microvascular networks
 
-**Review of Segmentation and Skeletonization Methods for Large-Scale Microvascular Networks**
-
-This repository contains code and resources associated with the paper
-"*Segmentation and Modeling of Large-Scale Microvascular Networks: A Survey*" by Goharbavang *et al*.
-
-📄 **[Read the Full Paper](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2025.1645520/full)**
+Code for the paper [Segmentation and modeling of large-scale microvascular networks: a survey](https://doi.org/10.3389/fbinf.2025.1645520)
+(Frontiers in Bioinformatics, 2025).
 
 <p align="center">
   <img src="docs/overview.png" alt="Overview Diagram" width="100%" />
