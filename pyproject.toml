@@ -43,6 +43,10 @@ skeleton = "microvasc.skeleton:main"
 Homepage = "https://github.com/helia77/MicroVasc-Review"
 Paper = "https://doi.org/10.3389/fbinf.2025.1645520"
 
+[tool.setuptools]
+# MANIFEST.in adds the Slurm scripts to the sdist only; the wheel gets just package-data below
+include-package-data = false
+
 [tool.setuptools.packages.find]
 include = ["microvasc*"]
 

@@ -1,0 +1,5 @@
+include CHANGELOG.md CONTRIBUTING.md CITATION.cff
+include microvasc/optimization/parameter.sbatch microvasc/optimization/submit.sh
+graft tests
+prune docs
+global-exclude __pycache__ *.py[cod]
