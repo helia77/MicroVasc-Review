@@ -3,7 +3,7 @@ import pytest
 from skimage.measure import marching_cubes
 
 import synthetic
-from manage_data import manage_data as md
+from microvasc import data as md
 
 
 def read_off(path):

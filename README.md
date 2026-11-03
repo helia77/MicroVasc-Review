@@ -39,7 +39,7 @@ The core install needs only NumPy, SciPy and scikit-image. Optional parts are in
 | Extra | Installs | Needed for |
 |---|---|---|
 | `kline` | scikit-fmm | `skeleton kline` |
-| `io` | opencv-python, pynrrd, SimpleITK | image stacks, NRRD files and resampling in `manage_data` |
+| `io` | opencv-python, pynrrd, SimpleITK | image stacks, NRRD files and resampling in `microvasc.data` |
 | `test` | pytest | running the tests |
 | `all` | all of the above | |
 
@@ -58,10 +58,10 @@ Binarize, skeletonize and evaluate a synthetic tube:
 ```python
 import numpy as np
 
-from implementations.Binarize import Binarizer
-from implementations.Skeleton import Skeletonize
-from metrics.geometry_metric import metric
-from metrics.skeleton_metric import netmets, voxel_skeleton_to_segments
+from microvasc.binarize import Binarizer
+from microvasc.skeleton import Skeletonize
+from microvasc.metrics.geometry import metric
+from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
 # a bright tube along axis 0 on a dark, noisy background
 _, y, x = np.mgrid[:32, :32, :32]
@@ -93,7 +93,7 @@ skeleton lee --input mask.npy --output skeleton.npy
 | [Skeletonization](docs/skeleton.md) | Lee, Palágyi, Kline and Kerautret, `skeleton` options, settings used in the paper |
 | [Metrics](docs/metrics.md) | Jaccard, Dice, precision, recall, and NetMets with per-input scales |
 | [Parameter optimization](docs/optimization.md) | Slurm sweeps for alpha, c, beta and tau, and J = F / (2 - F) |
-| [Data conversion](docs/data.md) | NWT, OBJ, OFF, NRRD and image stack helpers in `manage_data` |
+| [Data conversion](docs/data.md) | NWT, OBJ, OFF, NRRD and image stack helpers in `microvasc.data` |
 
 Development setup and tests: [CONTRIBUTING.md](CONTRIBUTING.md).
 

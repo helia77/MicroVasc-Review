@@ -1,4 +1,4 @@
-# Data conversion: `manage_data/manage_data.py`
+# Data conversion: `microvasc/data.py`
 
 Helpers to read networks and convert volumes and meshes between the formats used by the methods.
 Functions marked with `io` need the `io` extra (`pip install -e ".[io]"`). The others need only the

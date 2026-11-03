@@ -24,7 +24,7 @@ skeleton lee --input path/to/binary.npy --output path/to/skeleton.npy
 The 12-subiteration curve thinning of K. Palagyi and A. Kuba, A Parallel 3D 12-Subiteration
 Thinning Algorithm, Graphical Models and Image Processing 61, 199-221, 1999
 ([doi:10.1006/gmip.1999.0498](https://doi.org/10.1006/gmip.1999.0498)). The deletion templates are
-stored as a lookup table in `implementations/PK12.npz`, which is installed with the package and
+stored as a lookup table in `microvasc/PK12.npz`, which is installed with the package and
 used by default. `--templates` selects another table.
 
 ```bash
@@ -85,7 +85,7 @@ example uses the KESM settings from the table below:
 
 ```bash
 # Make the OFF mesh from a binarized volume (marching cubes)
-python -c "from manage_data.manage_data import npy2off; npy2off('path/to/binary_kesm.npy', 'path/to/binary_kesm.off')"
+python -c "from microvasc.data import npy2off; npy2off('path/to/binary_kesm.npy', 'path/to/binary_kesm.off')"
 
 skeleton kerautret \
   --input path/to/binary_kesm.off \
@@ -112,7 +112,7 @@ the defaults are 2.0, 3.0, 10.0 and 0.5, as in CDCVAM.
 ## Python
 
 ```python
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 ske = Skeletonize()
 skeleton = ske.lee(mask)
@@ -126,7 +126,7 @@ obj_path = ske.kerautret("path/to/centerLineGeodesicGraph", "path/to/mesh.off", 
 The paper also covers methods that are not implemented here:
 
 * **Mean curvature flow (Tagliasacchi)**: [https://github.com/taiya/starlab-mcfskel](https://github.com/taiya/starlab-mcfskel).
-  `manage_data.cg2obj` converts its CG output to OBJ (see [Data conversion](data.md)).
+  `microvasc.data.cg2obj` converts its CG output to OBJ (see [Data conversion](data.md)).
 * **Voronoi-based (Antiga)**: see the paper.
 * **3D Slicer**: [https://www.slicer.org](https://www.slicer.org)
 

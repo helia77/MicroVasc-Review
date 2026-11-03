@@ -1,9 +1,9 @@
 import hashlib
 
 from build_pk12_table import build_table
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
-# SHA-256 of the unpacked lookup table (2^26 bool entries) in implementations/PK12.npz
+# SHA-256 of the unpacked lookup table (2^26 bool entries) in microvasc/PK12.npz
 PK12_DATA_SHA256 = "5eeaee537c85ca95643cbf61c5e28e5023ff59f72ac46128453d82c1f80fc1a8"
 
 

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import synthetic
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 ROOT = Path(__file__).parents[1]
 
@@ -23,7 +23,7 @@ def run(*args):
 
 def test_skeleton_help_without_optional_packages():
     result = run("-c", NO_OPTIONAL + "sys.argv = ['skeleton', '--help']\n"
-                 "from implementations.Skeleton import main\nmain()")
+                 "from microvasc.skeleton import main\nmain()")
     assert result.returncode == 0, result.stderr
     for cmd in ("lee", "palagyi", "kerautret", "kline"):
         assert cmd in result.stdout
@@ -32,7 +32,7 @@ def test_skeleton_help_without_optional_packages():
 def test_skeleton_lee(tmp_path):
     mask = synthetic.tube_mask().astype(np.uint8)
     np.save(tmp_path / "in.npy", mask)
-    result = run("-m", "implementations.Skeleton", "lee",
+    result = run("-m", "microvasc.skeleton", "lee",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"))
     assert result.returncode == 0, result.stderr
     out = np.load(tmp_path / "out.npy")
@@ -45,7 +45,7 @@ def test_skeleton_palagyi(tmp_path, templates):
     mask = synthetic.tube_mask().astype(np.uint8)
     np.save(tmp_path / "in.npy", mask)
     extra = ["--templates", str(Skeletonize.DEFAULT_TEMPLATES)] if templates else []
-    result = run("-m", "implementations.Skeleton", "palagyi",
+    result = run("-m", "microvasc.skeleton", "palagyi",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"), *extra)
     assert result.returncode == 0, result.stderr
     np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonize().palagyi(mask))
@@ -55,7 +55,7 @@ def test_skeleton_kline(tmp_path):
     pytest.importorskip("skfmm")
     mask = synthetic.tube_mask().astype(np.uint8)
     np.save(tmp_path / "in.npy", mask)
-    result = run("-m", "implementations.Skeleton", "kline",
+    result = run("-m", "microvasc.skeleton", "kline",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"),
                  "--root", "3", "5", "2", "--dmw", "6", "--mbtr", "10")
     assert result.returncode == 0, result.stderr
@@ -66,7 +66,7 @@ def test_skeleton_kline(tmp_path):
 
 def test_skeleton_kline_bad_root(tmp_path):
     np.save(tmp_path / "in.npy", synthetic.tube_mask().astype(np.uint8))
-    result = run("-m", "implementations.Skeleton", "kline",
+    result = run("-m", "microvasc.skeleton", "kline",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"),
                  "--root", "0", "23", "0")
     assert result.returncode != 0
@@ -77,7 +77,7 @@ def test_skeleton_kline_bad_root(tmp_path):
 def test_skeleton_kerautret(tmp_path, fake_cdcvam):
     exe, read_log = fake_cdcvam
     (tmp_path / "mesh.off").write_text("OFF\n0 0 0\n")
-    result = run("-m", "implementations.Skeleton", "kerautret",
+    result = run("-m", "microvasc.skeleton", "kerautret",
                  "--input", str(tmp_path / "mesh.off"), "--output", str(tmp_path / "tree"),
                  "--exe-path", str(exe), "--dilate-dist", "1.5", "--delta-g", "2",
                  "--radius", "12", "--threshold", "0.25")

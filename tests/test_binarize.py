@@ -9,7 +9,7 @@ import scipy.ndimage as ndi
 from skimage.filters import threshold_otsu
 
 import synthetic
-from implementations.Binarize import Binarizer
+from microvasc.binarize import Binarizer
 
 ROOT = Path(__file__).parents[1]
 SCALES = [1.0, 2.0]
@@ -176,7 +176,7 @@ def test_calls_do_not_change_state(method, background):
 
 def binarize_cli(tmp_path, *args):
     np.save(tmp_path / "in.npy", synthetic.tube())
-    result = subprocess.run([sys.executable, "-m", "implementations.Binarize", *args,
+    result = subprocess.run([sys.executable, "-m", "microvasc.binarize", *args,
                              "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy")],
                             cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

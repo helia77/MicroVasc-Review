@@ -1,5 +1,5 @@
 """
-Tests for the NetMets precision and recall (metrics/skeleton_metric.py) and the NWT/OBJ reader.
+Tests for the NetMets precision and recall (microvasc/metrics/network.py) and the NWT/OBJ reader.
 
 Reference values in tests/data/netmets_golden.npz (see capture_netmets_golden.py): the reader
 outputs equal those of the reader before the NWT point fix, for everything that worked then
@@ -13,9 +13,9 @@ import pytest
 import synthetic
 from capture_netmets_golden import (DATA, SKELETONS, VOXEL_SIZES, case_key, netmets_case,
                                     reader_outputs)
-from manage_data.manage_data import NWT
-from metrics.skeleton_metric import (as_segments, netmets, netmets_similarity,
-                                     voxel_skeleton_to_segments)
+from microvasc.data import NWT
+from microvasc.metrics.network import (as_segments, netmets, netmets_similarity,
+                                       voxel_skeleton_to_segments)
 
 # a planar polyline in z = 0
 POLYLINE = np.array([[[0, 0, 0], [3, 1, 0]], [[3, 1, 0], [7, -2, 0]], [[7, -2, 0], [12, 0, 0]]], float)

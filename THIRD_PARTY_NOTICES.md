@@ -4,7 +4,7 @@ This project includes code derived from the following third-party software.
 
 ## poreture
 
-`Skeletonize.kline` in `implementations/Skeleton.py` is based on `kline_vessel` from poreture (https://github.com/TLKline/poreture), distributed under the following license:
+`Skeletonize.kline` in `microvasc/skeleton.py` is based on `kline_vessel` from poreture (https://github.com/TLKline/poreture), distributed under the following license:
 
 ```
 Unless otherwise specified by LICENSE.txt files in individual

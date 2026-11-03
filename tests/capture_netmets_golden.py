@@ -17,13 +17,13 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from implementations.Skeleton import Skeletonize
-from manage_data.manage_data import NWT
-from metrics.skeleton_metric import netmets, voxel_skeleton_to_segments
+from microvasc.skeleton import Skeletonize
+from microvasc.data import NWT
+from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
 DATA = Path(__file__).parent / "data" / "netmets_golden.npz"
-SOURCES = [Path(__file__).parents[1] / "metrics" / "skeleton_metric.py",
-           Path(__file__).parents[1] / "manage_data" / "manage_data.py"]
+SOURCES = [Path(__file__).parents[1] / "microvasc" / "metrics" / "network.py",
+           Path(__file__).parents[1] / "microvasc" / "data.py"]
 
 SKELETONS = {
     "tube": (synthetic.tube_mask, synthetic.TUBE_AXIS),

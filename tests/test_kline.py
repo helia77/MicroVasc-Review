@@ -4,7 +4,7 @@ import scipy.ndimage as ndi
 
 import synthetic
 from capture_kline_golden import CASES, DATA, WEIGHTS, case_key
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 CONN26 = ndi.generate_binary_structure(3, 3)
 

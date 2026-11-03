@@ -17,10 +17,10 @@ import scipy
 import skimage
 
 import synthetic
-from implementations.Binarize import Binarizer
+from microvasc.binarize import Binarizer
 
 DATA = Path(__file__).parent / "data" / "binarize_golden.npz"
-SOURCE = Path(__file__).parents[1] / "implementations" / "Binarize.py"
+SOURCE = Path(__file__).parents[1] / "microvasc" / "binarize.py"
 
 SCALES = [1.0, 2.0, 3.0]
 FRANGI = dict(alpha=0.5, beta=0.5, c=25.0)

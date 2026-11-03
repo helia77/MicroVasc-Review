@@ -5,7 +5,7 @@ from skimage.measure import euler_number
 
 import synthetic
 from capture_skeleton_golden import DATA, MASKS
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 CONN26 = ndi.generate_binary_structure(3, 3)
 

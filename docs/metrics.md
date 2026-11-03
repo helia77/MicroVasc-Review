@@ -1,11 +1,11 @@
 # Metrics
 
-## Segmentation: `metrics/geometry_metric.py`
+## Segmentation: `microvasc/metrics/geometry.py`
 
 Voxel-wise comparison of a binary prediction with a binary ground truth.
 
 ```python
-from metrics.geometry_metric import metric
+from microvasc.metrics.geometry import metric
 
 m = metric(ground_truth, prediction)
 m.jaccard(), m.dice(), m.precision(), m.recall()
@@ -21,7 +21,7 @@ m.jaccard(), m.dice(), m.precision(), m.recall()
 When both masks are empty, Jaccard, Dice, precision and recall return 1.0. Any other zero
 denominator gives 0.0. The F-score and the Jaccard index are related by J = F / (2 - F).
 
-## Skeletons: NetMets, `metrics/skeleton_metric.py`
+## Skeletons: NetMets, `microvasc/metrics/network.py`
 
 The NetMets geometry metric of D. Mayerich, C. Bjornsson, J. Taylor and B. Roysam, NetMets:
 software for quantifying and visualizing errors in biological network segmentation, BMC
@@ -43,7 +43,7 @@ and 0.0 otherwise.
 
 A network can be:
 
-* a `manage_data.NWT` object, loaded from a `.nwt` or `.obj` file,
+* a `microvasc.data.NWT` object, loaded from a `.nwt` or `.obj` file,
 * an array of line segments of shape (N, 2, 3),
 * a voxel skeleton turned into segments with `voxel_skeleton_to_segments(mask, voxel_size)`.
 
@@ -54,8 +54,8 @@ number or one value per axis, so a voxel skeleton and a ground truth stored in d
 be compared directly:
 
 ```python
-from manage_data.manage_data import NWT
-from metrics.skeleton_metric import netmets, voxel_skeleton_to_segments
+from microvasc.data import NWT
+from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
 test = voxel_skeleton_to_segments(skeleton)        # voxel units, array axes 0, 1, 2
 truth = NWT("path/to/ground_truth.obj")

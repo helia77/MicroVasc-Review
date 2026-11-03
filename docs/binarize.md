@@ -64,7 +64,7 @@ maximum after the flip, so results can differ between the two.
 ## Python
 
 ```python
-from implementations.Binarize import Binarizer
+from microvasc.binarize import Binarizer
 
 binarizer = Binarizer(volume, background="black")
 mask = binarizer.otsu3d()

@@ -14,10 +14,10 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 DATA = Path(__file__).parent / "data" / "kline_golden.npz"
-SOURCE = Path(__file__).parents[1] / "implementations" / "Skeleton.py"
+SOURCE = Path(__file__).parents[1] / "microvasc" / "skeleton.py"
 
 # mask and a root voxel on the vessel, as array indices along axes 0, 1, 2
 CASES = {

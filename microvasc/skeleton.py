@@ -5,7 +5,7 @@ import argparse
 import subprocess
 import numpy as np
 import scipy.ndimage as ndi
-from manage_data import manage_data as md
+from microvasc import data as md
 from pathlib import Path
 import skimage.morphology as mph
 from typing import Optional, Tuple

@@ -34,7 +34,7 @@ def as_segments(network, scale=1.0) -> np.ndarray:
     Line segments of a network as a float array of shape (N, 2, 3).
 
     Args:
-        network: a manage_data.NWT object (loaded from .nwt or .obj), or an array-like of
+        network: a microvasc.data.NWT object (loaded from .nwt or .obj), or an array-like of
             segments with shape (N, 2, 3).
         scale: factor applied to the coordinates (for example the voxel size in um), a number
             or one value per axis.

@@ -3,8 +3,8 @@ import math
 import argparse
 import warnings
 import numpy as np
-from implementations.Binarize import Binarizer
-from metrics.geometry_metric import metric
+from microvasc.binarize import Binarizer
+from microvasc.metrics.geometry import metric
 
 
 def alpha_c_ranges(N):

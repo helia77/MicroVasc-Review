@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import pytest
 
-from metrics.geometry_metric import metric
+from microvasc.metrics.geometry import metric
 
 # 3 x 4 masks with TP = 2, FP = 1, FN = 3, TN = 6
 TRUE = np.array([[1, 1, 1, 0],

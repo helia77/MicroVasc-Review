@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from implementations.Skeleton import Skeletonize
-from manage_data import manage_data as md
+from microvasc.skeleton import Skeletonize
+from microvasc import data as md
 
 EXPECTED_OBJ = """\
 # vertices

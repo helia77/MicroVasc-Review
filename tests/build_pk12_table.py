@@ -7,7 +7,7 @@ template of T_US, where bit k of i is the value of the neighbor at BIT_OFFSETS[k
 All 2^26 neighborhoods are checked.
 
     python tests/build_pk12_table.py                  # compare only
-    python tests/build_pk12_table.py --output implementations/PK12.npz
+    python tests/build_pk12_table.py --output microvasc/PK12.npz
 
 The table is saved as packed bits (np.packbits) under "pk12" in a compressed .npz file.
 
@@ -64,7 +64,7 @@ def main():
     parser.add_argument("--output", type=Path, default=None, help="Save the built table to this .npz file.")
     args = parser.parse_args()
 
-    from implementations.Skeleton import Skeletonize
+    from microvasc.skeleton import Skeletonize
 
     table = build_table()
     print(f"built:   {table.size} entries, {int(table.sum())} deletable, "

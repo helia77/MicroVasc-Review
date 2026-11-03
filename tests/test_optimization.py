@@ -1,5 +1,5 @@
 """
-Tests for the parameter sweep scripts in optimization/.
+Tests for the parameter sweep scripts in microvasc/optimization/.
 
 These scripts could not run before (wrong imports and filter calls), so there are no earlier
 outputs to compare with; results are compared with direct Binarizer and metric calls instead.
@@ -14,9 +14,9 @@ import numpy as np
 import pytest
 
 import synthetic
-from implementations.Binarize import Binarizer
-from metrics.geometry_metric import metric
-from optimization import parameter_concat, parameter_fscore as pf
+from microvasc.binarize import Binarizer
+from microvasc.metrics.geometry import metric
+from microvasc.optimization import parameter_concat, parameter_fscore as pf
 
 ROOT = Path(__file__).parents[1]
 SCALE = [1.0]
@@ -125,7 +125,7 @@ def fake_command(bin_dir, name, log):
 @needs_bash
 def test_scripts_parse():
     for script in ("parameter.sbatch", "submit.sh"):
-        result = subprocess.run(["bash", "-n", str(ROOT / "optimization" / script)], capture_output=True, text=True)
+        result = subprocess.run(["bash", "-n", str(ROOT / "microvasc" / "optimization" / script)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
 
 
@@ -139,12 +139,12 @@ def test_submit_sets_array_from_sweep_length(tmp_path, parameter, ranges, array)
     (bin_dir / "python").chmod(0o755)
     fake_command(bin_dir, "sbatch", tmp_path / "sbatch.log")
     env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
-    result = subprocess.run(["bash", "optimization/submit.sh", parameter, "vol.npy", "gt.npy", "out",
+    result = subprocess.run(["bash", "microvasc/optimization/submit.sh", parameter, "vol.npy", "gt.npy", "out",
                              "--scale", "1", "2", "--ranges", ranges],
                             cwd=ROOT, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     argv = (tmp_path / "sbatch.log").read_text().splitlines()
-    assert argv == [f"--array={array}", "optimization/parameter.sbatch", parameter, "vol.npy", "gt.npy", "out",
+    assert argv == [f"--array={array}", "microvasc/optimization/parameter.sbatch", parameter, "vol.npy", "gt.npy", "out",
                     "--scale", "1", "2", "--ranges", ranges]
 
 
@@ -155,11 +155,11 @@ def test_sbatch_job_passes_arguments(tmp_path):
     fake_command(bin_dir, "python", tmp_path / "python.log")
     fake_command(bin_dir, "module", tmp_path / "module.log")
     env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "SLURM_ARRAY_TASK_ID": "7"}
-    args = ["bash", "optimization/parameter.sbatch", "tau", "vol.npy", "gt.npy", "out", "--scale", "1", "2"]
+    args = ["bash", "microvasc/optimization/parameter.sbatch", "tau", "vol.npy", "gt.npy", "out", "--scale", "1", "2"]
     result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "python.log").read_text().splitlines() == [
-        "-m", "optimization.parameter_fscore", "--parameter", "tau", "--input_volume", "vol.npy",
+        "-m", "microvasc.optimization.parameter_fscore", "--parameter", "tau", "--input_volume", "vol.npy",
         "--ground_truth", "gt.npy", "--output_dir", "out", "--array_id", "7", "--scale", "1", "2"]
 
     del env["SLURM_ARRAY_TASK_ID"]

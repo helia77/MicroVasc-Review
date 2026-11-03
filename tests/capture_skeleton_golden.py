@@ -14,10 +14,10 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from implementations.Skeleton import Skeletonize
+from microvasc.skeleton import Skeletonize
 
 DATA = Path(__file__).parent / "data" / "skeleton_golden.npz"
-SOURCE = Path(__file__).parents[1] / "implementations" / "Skeleton.py"
+SOURCE = Path(__file__).parents[1] / "microvasc" / "skeleton.py"
 
 MASKS = {
     "tube": synthetic.tube_mask,

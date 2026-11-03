@@ -100,7 +100,7 @@ def write_obj(path, vertices=NETWORK_VERTICES, edges=NETWORK_EDGES):
 
 def write_nwt(path, vertices=NETWORK_VERTICES, edges=NETWORK_EDGES, desc="synthetic network"):
     """
-    Write a network in the binary NWT layout read by manage_data.NWT: a 14-byte header,
+    Write a network in the binary NWT layout read by microvasc.data.NWT: a 14-byte header,
     a 58-byte description, vertex and edge counts (uint32), then for each vertex its position
     (3 float32), outgoing and incoming edge counts and indices (uint32), and for each edge its
     two vertex indices, point count (uint32) and points as (x, y, z, radius) float32.
