@@ -53,6 +53,7 @@ Binarize, skeletonize and evaluate a synthetic tube:
 
 ```python
 import numpy as np
+from scipy import ndimage
 
 from microvasc.binarize import Binarizer
 from microvasc.skeleton import Skeletonizer
@@ -66,6 +67,10 @@ rng = np.random.default_rng(0)
 volume = truth + 0.2 * rng.standard_normal(truth.shape)
 
 mask = Binarizer(volume, background="black").otsu3d()
+
+# keep the largest connected component, then fill the holes left by the noise
+labels, _ = ndimage.label(mask)
+mask = ndimage.binary_fill_holes(labels == np.bincount(labels.ravel())[1:].argmax() + 1)
 print("Jaccard", SegmentationMetrics(truth, mask).jaccard())
 
 skeleton = Skeletonizer().lee(mask)

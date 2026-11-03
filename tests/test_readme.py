@@ -4,6 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
+from microvasc.metrics.geometry import SegmentationMetrics
+
 README = Path(__file__).parents[1] / "README.md"
 
 
@@ -22,4 +24,7 @@ def test_readme_quick_start():
     mask, skeleton, truth = namespace["mask"], namespace["skeleton"], namespace["truth"]
     assert mask.shape == truth.shape and set(np.unique(mask)) <= {0, 1}
     assert np.all(skeleton <= mask)
-    assert 0 < namespace["precision"] <= 1 and 0 < namespace["recall"] <= 1
+    # measured: Jaccard 0.991, precision 1.000, recall 0.948 (Lee thinning shortens both ends)
+    assert SegmentationMetrics(truth, mask).jaccard() > 0.95
+    assert 0.95 < namespace["precision"] <= 1
+    assert 0.9 < namespace["recall"] <= 1
