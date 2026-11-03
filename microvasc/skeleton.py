@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-class Skeletonize:
+class Skeletonizer:
     """
     Wraps multiple 3D skeletonization algorithms.
     """
@@ -124,8 +124,8 @@ class Skeletonize:
                      for u, n, e in itertools.product((-1, 0, 1), repeat=3) if (u, n, e) != (0, 0, 0)]
         return np.array(neighbors) @ strides
   
-    def kerautret(self, exe_path: Path, off_input: Path, output_path: Path, 
-                  dilateDist: Optional[float]=2.0, deltaG: Optional[float]=3.0, radius: Optional[float]=10.0, threshold: Optional[float]=0.5):
+    def kerautret(self, exe_path: Path, off_path: Path, output_prefix: Path,
+                  dilate_dist: Optional[float]=2.0, delta_g: Optional[float]=3.0, radius: Optional[float]=10.0, threshold: Optional[float]=0.5):
         """
         Run external Kerautret binary on OFF mesh.
         The exe file can be obtained by compiling the main Kerautret's project.
@@ -134,11 +134,11 @@ class Skeletonize:
         
         Args:
             exe_path:           Path to the CDCVAM "centerLineGeodesicGraph" executable
-            off_input:          Path to the input surface mesh (OFF format)
-            output_path:        Output prefix. Writes <prefix>Vertex.sdp, <prefix>Edges.sdp,
+            off_path:           Path to the input surface mesh (OFF format)
+            output_prefix:      Output prefix. Writes <prefix>Vertex.sdp, <prefix>Edges.sdp,
                                 <prefix>Radius.sdp and <prefix>.obj
-            dilateDist:         Dilate distance of the confidence voxels. 2.0 (default)
-            deltaG:             The parameter to consider interval of distances. 3.0  (default)
+            dilate_dist:        Dilate distance of the confidence voxels. 2.0 (default)
+            delta_g:            The parameter to consider interval of distances. 3.0  (default)
             radius:             The radius used to compute the accumulation. 10.0  (default)
             threshold:          The threshold in the confidence estimation. 0.5  (default)
 
@@ -147,28 +147,28 @@ class Skeletonize:
         "Centerline detection on partial mesh scans by confidence vote in accumulation map," 2016,
         pp. 1376-1381, doi: 10.1109/ICPR.2016.7899829.
         """
-        exe_path, off_input, output_path = Path(exe_path), Path(off_input), Path(output_path)
+        exe_path, off_path, output_prefix = Path(exe_path), Path(off_path), Path(output_prefix)
         if not exe_path.is_file() or not os.access(exe_path, os.X_OK):
             raise FileNotFoundError(
                 f"Kerautret executable not found or not executable: {exe_path}. "
                 "Get CDCVAM from https://github.com/kerautret/CDCVAM and build it with CMake "
                 "(needs DGtal): mkdir build && cd build && cmake .. && make. "
                 "The executable is build/bin/centerLineGeodesicGraph.")
-        if not off_input.is_file():
-            raise FileNotFoundError(f"Input mesh not found: {off_input}")
+        if not off_path.is_file():
+            raise FileNotFoundError(f"Input mesh not found: {off_path}")
 
         logger.info("Running Kerautret's skeletonization.")
         # Remove previous results for this output prefix only
         for suffix in ("Vertex.sdp", "Edges.sdp", "Radius.sdp"):
-            old = output_path.with_name(output_path.name + suffix)
+            old = output_prefix.with_name(output_prefix.name + suffix)
             if old.is_file():
                 old.unlink()
         command = [
             str(exe_path),
-            "-i", str(off_input),
-            "-o", str(output_path),
-            "--dilateDist", str(dilateDist),
-            "-g", str(deltaG),
+            "-i", str(off_path),
+            "-o", str(output_prefix),
+            "--dilateDist", str(dilate_dist),
+            "-g", str(delta_g),
             "-R", str(radius),
             "-t", str(threshold)
         ]
@@ -177,11 +177,11 @@ class Skeletonize:
         subprocess.run(command, check=True)                         # saves three files: Vertex, Edges, and Radius in .SDP format
 
         # Convert to .OBJ and save
-        obj_path = Path(md.sdp2obj(output_path))
+        obj_path = Path(md.sdp2obj(output_prefix))
         logger.info("Kerautret output at %s", obj_path)
         return obj_path
             
-    def kline(self, volume: np.ndarray, startID: Tuple[int, int, int], dmw: float=6, mbtr: float=10):
+    def kline(self, volume: np.ndarray, root: Tuple[int, int, int], dist_map_weight: float=6, min_branch_to_root: float=10):
         """
         Kline's method.
         -> Based on https://github.com/TLKline/poreture (@author: TLKline)
@@ -190,10 +190,10 @@ class Skeletonize:
         
         Args:
             volume: Binarized volume. Any nonzero voxel is foreground.
-            startID: Index of the root voxel along axes 0, 1 and 2. It must lie on a vessel voxel.
-        
-            dmw (dist_map_weight): Weight for distance map. Defaults to 6.
-            mbtr (min_branch_to_root): Minimum Euclidean distance (in voxels) from an endpoint
+            root: Index of the root voxel along axes 0, 1 and 2. It must lie on a vessel voxel.
+
+            dist_map_weight: Weight for distance map. Defaults to 6.
+            min_branch_to_root: Minimum Euclidean distance (in voxels) from an endpoint
                 to the root. Defaults to 10.
 
         Returns:
@@ -211,9 +211,9 @@ class Skeletonize:
             kline_pore - [Kline et al. J Porous Mat 2011]
             
         """
-        root = tuple(int(c) for c in startID)
+        root = tuple(int(c) for c in root)
         if volume.ndim != 3 or len(root) != 3:
-            raise ValueError(f"kline needs a 3D volume and a root with 3 indices, got shape {volume.shape} and root {startID}")
+            raise ValueError(f"kline needs a 3D volume and a root with 3 indices, got shape {volume.shape} and root {root}")
         if any(c < 0 or c >= n for c, n in zip(root, volume.shape)):
             raise ValueError(f"Root {root} is outside the volume of shape {volume.shape}. "
                              "Give array indices along axes 0, 1 and 2.")
@@ -238,9 +238,9 @@ class Skeletonize:
         B2 = B2[np.min(x3):np.max(x3) + 1, np.min(y3):np.max(y3) + 1, np.min(z3):np.max(z3) + 1]
 
         # Setup starting index list and correct for change in volume size
-        sx = startID[0] - np.min(x3) 
-        sy = startID[1] - np.min(y3) 
-        sz = startID[2] - np.min(z3) 
+        sx = root[0] - np.min(x3)
+        sy = root[1] - np.min(y3)
+        sz = root[2] - np.min(z3)
 
         # Perform first fast march to determine endpoints
         # works on binary speed function
@@ -262,7 +262,7 @@ class Skeletonize:
 
         # Perform second FMM, to create field for gradient descent
         dMap = ndi.distance_transform_edt(constant_speed)
-        weighted_speed = dMap ** dmw
+        weighted_speed = dMap ** dist_map_weight
         weighted_travel_time = skfmm.travel_time(phi, weighted_speed)
         weighted_travel_time = weighted_travel_time.filled()
 
@@ -274,7 +274,7 @@ class Skeletonize:
         X, Y, Z = [], [], []
         # Check whether endpoint is sufficiently far from root voxel (min_branch_to_root)
         for i in range(len(order_indici)):
-            if Euc[i] > mbtr:
+            if Euc[i] > min_branch_to_root:
                 X.append(endx[order_indici[i]])
                 Y.append(endy[order_indici[i]])
                 Z.append(endz[order_indici[i]])
@@ -408,13 +408,13 @@ def main():
         help="Index of the root voxel along array axes 0, 1 and 2 (must be a vessel voxel)"
     )
     p_kl.add_argument("--output", type=Path, required=True)
-    p_kl.add_argument("--dmw", type=float, default=6,
+    p_kl.add_argument("--dist-map-weight", type=float, default=6,
                       help="Distance map weight (default: 6)")
-    p_kl.add_argument("--mbtr", type=float, default=10,
+    p_kl.add_argument("--min-branch-to-root", type=float, default=10,
                       help="Minimum distance from an endpoint to the root, in voxels (default: 10)")
 
     args = parser.parse_args()
-    ske = Skeletonize()
+    ske = Skeletonizer()
 
     if args.cmd == "lee":
         vol = np.load(args.input)
@@ -429,17 +429,18 @@ def main():
     elif args.cmd == "kerautret":
         ske.kerautret(
             exe_path=args.exe_path,
-            off_input=args.input,
-            output_path=args.output,
-            dilateDist=args.dilate_dist,
-            deltaG=args.delta_g,
+            off_path=args.input,
+            output_prefix=args.output,
+            dilate_dist=args.dilate_dist,
+            delta_g=args.delta_g,
             radius=args.radius,
             threshold=args.threshold
         )
 
     elif args.cmd == "kline":
         vol = np.load(args.input)
-        out = ske.kline(vol, tuple(args.root), dmw=args.dmw, mbtr=args.mbtr)
+        out = ske.kline(vol, tuple(args.root), dist_map_weight=args.dist_map_weight,
+                        min_branch_to_root=args.min_branch_to_root)
         np.save(args.output, out)
 
     else:

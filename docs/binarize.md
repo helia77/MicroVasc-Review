@@ -25,18 +25,19 @@ binarize otsu3d --input path/to/volume.npy --output path/to/mask.npy --backgroun
 
 ## Frangi: `frangi`
 
-Frangi vesselness. `--params alpha beta c` sets the three Frangi parameters and `--scale` the
+Frangi vesselness. `--alpha`, `--beta` and `--c` set the three Frangi parameters and `--scale` the
 Gaussian scales (in voxels). The response is the maximum over the scales, in [0, 1]. With
-`--th otsu2d` or `--th otsu3d` the response is thresholded with Otsu and the output is a uint8 mask.
+`--threshold otsu2d` or `--threshold otsu3d` the response is thresholded with Otsu and the output is
+a uint8 mask.
 
 ```bash
 binarize frangi \
   --input path/to/volume.npy \
   --output path/to/out.npy \
   --background white \
-  --params 0.5 0.5 3 \
+  --alpha 0.5 --beta 0.5 --c 3 \
   --scale 1 2 3 4 \
-  --th otsu3d
+  --threshold otsu3d
 ```
 
 The paper's baseline Frangi settings use c equal to half of the maximum Hessian norm. This code
@@ -44,16 +45,16 @@ takes c as an explicit value and does not compute it.
 
 ## Beyond Frangi: `bfrangi`
 
-Beyond Frangi (Jerman et al.). `--params tau` sets the regularization parameter. `--scale` and
-`--th` work as for `frangi`.
+Beyond Frangi (Jerman et al.). `--tau` sets the regularization parameter. `--scale` and
+`--threshold` work as for `frangi`.
 
 ```bash
 binarize bfrangi \
   --input path/to/volume.npy \
   --output path/to/out.npy \
-  --params 0.75 \
+  --tau 0.75 \
   --scale 1 2 3 \
-  --th otsu3d
+  --threshold otsu3d
 ```
 
 The regularization uses tau times the largest |lambda3| at each scale, taken before the sign is
@@ -69,8 +70,8 @@ from microvasc.binarize import Binarizer
 binarizer = Binarizer(volume, background="black")
 mask = binarizer.otsu3d()
 mask2d = binarizer.otsu2d()
-vesselness = binarizer.frangi(alpha=0.5, beta=0.5, c=3, scale_range=[1, 2, 3])
-mask = binarizer.bfrangi(tau=0.75, scale_range=[1, 2, 3], threshold="otsu3d")
+vesselness = binarizer.frangi(alpha=0.5, beta=0.5, c=3, scales=[1, 2, 3])
+mask = binarizer.bfrangi(tau=0.75, scales=[1, 2, 3], threshold="otsu3d")
 ```
 
 The parameters can be tuned with the scripts described in [Parameter optimization](optimization.md).

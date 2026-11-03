@@ -107,8 +107,8 @@ def test_hessian_of_quadratic(background, scale):
 
 def run_filter(binzr, method, threshold=None):
     if method == "frangi":
-        return binzr.frangi(scale_range=SCALES, threshold=threshold, **FRANGI)
-    return binzr.bfrangi(tau=TAU, scale_range=SCALES, threshold=threshold)
+        return binzr.frangi(scales=SCALES, threshold=threshold, **FRANGI)
+    return binzr.bfrangi(tau=TAU, scales=SCALES, threshold=threshold)
 
 
 class NoSkipBinarizer(Binarizer):
@@ -190,12 +190,13 @@ def test_cli_otsu(tmp_path, method):
 
 
 def test_cli_frangi_otsu2d(tmp_path):
-    out = binarize_cli(tmp_path, "frangi", "--params", "0.5", "0.5", "25", "--scale", "1", "2", "--th", "otsu2d")
+    out = binarize_cli(tmp_path, "frangi", "--alpha", "0.5", "--beta", "0.5", "--c", "25", "--scale", "1", "2",
+                       "--threshold", "otsu2d")
     assert out.dtype == np.uint8
     np.testing.assert_array_equal(out, run_filter(Binarizer(synthetic.tube()), "frangi", "otsu2d"))
 
 
 def test_cli_bfrangi_otsu3d(tmp_path):
-    out = binarize_cli(tmp_path, "bfrangi", "--params", "0.5", "--scale", "1", "2", "--th", "otsu3d")
+    out = binarize_cli(tmp_path, "bfrangi", "--tau", "0.5", "--scale", "1", "2", "--threshold", "otsu3d")
     assert out.dtype == np.uint8
     np.testing.assert_array_equal(out, run_filter(Binarizer(synthetic.tube()), "bfrangi", "otsu3d"))

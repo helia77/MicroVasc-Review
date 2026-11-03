@@ -44,11 +44,11 @@ def test_parallel_copy(sigma, delta):
     # every point of either copy is exactly delta from the other one
     expected = math.exp(-delta**2 / (2 * sigma**2))
     shifted = POLYLINE + [0, 0, delta]
-    assert netmets(shifted, POLYLINE, sigma) == pytest.approx((expected, expected), rel=1e-12)
+    assert netmets(POLYLINE, shifted, sigma) == pytest.approx((expected, expected), rel=1e-12)
 
 
 def test_far_apart_networks():
-    P, R = netmets(POLYLINE + [0, 0, 20], POLYLINE, sigma=1.0)
+    P, R = netmets(POLYLINE, POLYLINE + [0, 0, 20], sigma=1.0)
     assert P < 1e-12 and R < 1e-12
 
 
@@ -59,7 +59,7 @@ def test_missing_branch(sigma, branch):
     test = np.array([[[0, 0, 0], [10, 0, 0]]], float)
     truth = np.concatenate([test, [[[5, 0, 0], [5, branch, 0]]]])
     matched = sigma * math.sqrt(math.pi / 2) * math.erf(branch / (sigma * math.sqrt(2)))
-    P, R = netmets(test, truth, sigma)
+    P, R = netmets(truth, test, sigma)
     assert P == pytest.approx(1.0, rel=1e-12)
     # midpoint rule with steps of sigma / 10
     assert R == pytest.approx((10 + matched) / (10 + branch), abs=1e-4)
@@ -67,15 +67,30 @@ def test_missing_branch(sigma, branch):
 
 def test_sigma_scales_with_coordinates():
     shifted = POLYLINE + [0, 0, 1.0]
-    np.testing.assert_allclose(netmets(shifted * 3, POLYLINE * 3, sigma=3.0), netmets(shifted, POLYLINE, sigma=1.0))
+    np.testing.assert_allclose(netmets(POLYLINE * 3, shifted * 3, sigma=3.0), netmets(POLYLINE, shifted, sigma=1.0))
 
 
 def test_each_input_has_its_own_scale():
     # ground truth stored in units of 0.5 um, test in um
     shifted = POLYLINE + [0, 0, 1.0]
-    assert netmets(POLYLINE, POLYLINE / 2, truth_scale=2.0) == pytest.approx((1.0, 1.0), rel=1e-12)
-    assert netmets(shifted, POLYLINE / 2, truth_scale=2.0) == netmets(shifted, POLYLINE)
-    assert netmets(POLYLINE / 2, shifted, test_scale=(2.0, 2.0, 2.0)) == netmets(POLYLINE, shifted)
+    assert netmets(POLYLINE / 2, POLYLINE, truth_scale=2.0) == pytest.approx((1.0, 1.0), rel=1e-12)
+    assert netmets(POLYLINE / 2, shifted, truth_scale=2.0) == netmets(POLYLINE, shifted)
+    assert netmets(shifted, POLYLINE / 2, test_scale=(2.0, 2.0, 2.0)) == netmets(shifted, POLYLINE)
+
+
+def test_ground_truth_comes_first():
+    # the test network is the first half of the ground truth: all of it matches the ground truth
+    # (P = 1) and only about half of the ground truth is found (R < 1), so swapped arguments
+    # would swap P and R
+    truth = np.array([[[0, 0, 0], [10, 0, 0]], [[10, 0, 0], [10, 10, 0]]], float)
+    test = truth[:1]
+    P, R = netmets(truth, test)
+    assert P == pytest.approx(1.0, rel=1e-12)
+    assert R < 0.6
+    assert netmets(ground_truth=truth, test=test) == (P, R)
+    # each scale belongs to its own input
+    assert netmets(truth / 2, test, truth_scale=2.0) == (P, R)
+    assert netmets(truth, test / 2, test_scale=2.0) == (P, R)
 
 
 def test_long_segments_split_into_short_ones_give_the_same_result():
@@ -90,8 +105,8 @@ def test_long_segments_split_into_short_ones_give_the_same_result():
 def test_empty_networks():
     empty = np.zeros((0, 2, 3))
     assert netmets(empty, empty) == (1.0, 1.0)
-    assert netmets(empty, POLYLINE) == (0.0, 0.0)
     assert netmets(POLYLINE, empty) == (0.0, 0.0)
+    assert netmets(empty, POLYLINE) == (0.0, 0.0)
 
 
 def test_bad_input():
@@ -133,7 +148,7 @@ def test_voxel_line_matches_its_segment():
     mask = np.zeros((5, 12, 6), np.uint8)
     mask[3, 0:10, 4] = 1
     truth = np.array([[[3, 0, 4], [3, 9, 4]]], float) * (0.75, 1.0, 1.0)
-    P, R = netmets(voxel_skeleton_to_segments(mask, (0.75, 1.0, 1.0)), truth)
+    P, R = netmets(truth, voxel_skeleton_to_segments(mask, (0.75, 1.0, 1.0)))
     assert P == pytest.approx(1.0, rel=1e-12) and R == pytest.approx(1.0, rel=1e-12)
 
 
@@ -157,7 +172,7 @@ def test_nwt_edge_points_are_x_y_z_radius(tmp_path):
     synthetic.write_nwt(tmp_path / "network.nwt")
     network = NWT(str(tmp_path / "network.nwt"))
     assert network.header == "nwtfileformat "
-    for e, (v0, v1, interior) in zip(network.e, synthetic.NETWORK_EDGES):
+    for e, (v0, v1, interior) in zip(network.edges, synthetic.NETWORK_EDGES):
         assert e.v == (v0, v1)
         np.testing.assert_array_equal(np.array(e.p, float).reshape(-1, 4), np.reshape(interior, (-1, 4)))
 
@@ -169,7 +184,7 @@ def test_nwt_and_obj_give_the_same_segments(tmp_path):
     obj = as_segments(NWT(str(tmp_path / "network.obj")))
     assert nwt.shape == (6, 2, 3)
     np.testing.assert_array_equal(nwt, obj)
-    assert netmets(NWT(str(tmp_path / "network.nwt")), obj) == pytest.approx((1.0, 1.0), rel=1e-12)
+    assert netmets(obj, NWT(str(tmp_path / "network.nwt"))) == pytest.approx((1.0, 1.0), rel=1e-12)
 
 
 def test_save_obj_round_trip(tmp_path):

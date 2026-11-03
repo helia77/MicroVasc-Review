@@ -1,5 +1,5 @@
 """
-Regenerate the reference outputs used by test_skeleton_metric.py.
+Regenerate the reference outputs used by test_network.py.
 
 Only run this when the NetMets or network reader behavior is meant to change:
 
@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 from microvasc.data import NWT
 from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
@@ -41,7 +41,7 @@ def netmets_case(skeleton, axis, voxel_size):
     """(P, R) of a voxel skeleton against its analytic centerline, both scaled to um."""
     test = voxel_skeleton_to_segments(skeleton, voxel_size)
     truth = np.asarray(axis, dtype=float) * voxel_size
-    return np.array(netmets(test, truth, SIGMA))
+    return np.array(netmets(truth, test, SIGMA))
 
 
 def reader_outputs():
@@ -52,12 +52,12 @@ def reader_outputs():
             path = Path(d) / f"network.{kind}"
             write(path)
             n = NWT(str(path))
-            out[f"{kind}__vertices"] = np.array([v.p for v in n.v], dtype=float)
-            out[f"{kind}__edge_v"] = np.array([e.v for e in n.e], dtype=int)
-            out[f"{kind}__eout"] = np.array([str([int(i) for i in v.Eout]) for v in n.v])
-            out[f"{kind}__ein"] = np.array([str([int(i) for i in v.Ein]) for v in n.v])
-            out[f"{kind}__segments"] = np.array([s.p for s in n.linesegments()], dtype=float)
-        out["obj__pointcloud"] = np.array(NWT(str(Path(d) / "network.obj")).pointcloud(0.5), dtype=float)
+            out[f"{kind}__vertices"] = np.array([v.p for v in n.vertices], dtype=float)
+            out[f"{kind}__edge_v"] = np.array([e.v for e in n.edges], dtype=int)
+            out[f"{kind}__eout"] = np.array([str([int(i) for i in v.e_out]) for v in n.vertices])
+            out[f"{kind}__ein"] = np.array([str([int(i) for i in v.e_in]) for v in n.vertices])
+            out[f"{kind}__segments"] = np.array([s.p for s in n.line_segments()], dtype=float)
+        out["obj__pointcloud"] = np.array(NWT(str(Path(d) / "network.obj")).point_cloud(0.5), dtype=float)
     return out
 
 
@@ -71,7 +71,7 @@ def main():
     arrays = reader_outputs()
     for name, (make, axis) in SKELETONS.items():
         mask = make()
-        skeleton = Skeletonize().lee(mask.astype(np.uint8))
+        skeleton = Skeletonizer().lee(mask.astype(np.uint8))
         arrays[f"skeleton__{name}"] = np.packbits(skeleton.ravel())
         arrays[f"shape__{name}"] = np.array(mask.shape)
         for spacing, voxel_size in VOXEL_SIZES.items():

@@ -53,10 +53,10 @@ def main(args):
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Concatenate F-score results from saved files. Array sizes follow the files found; values of missing jobs stay 0.")
-    parser.add_argument('--input_dir', type=str, required=True, help='Directory containing the F-score files.')
-    parser.add_argument('--output_dir', type=str, required=True, help='Directory to save the concatenated F-scores.')
+    parser.add_argument('--input-dir', type=str, required=True, help='Directory containing the F-score files.')
+    parser.add_argument('--output-dir', type=str, required=True, help='Directory to save the concatenated F-scores.')
     parser.add_argument('--parameter', type=str, required=True, choices=['alpha', 'beta', 'tau'], help='Parameter to process.')
-    parser.add_argument('--step_size', type=int, default=4, help='Step size used in the parameter ranges.')
+    parser.add_argument('--step-size', type=int, default=4, help='Step size used in the parameter ranges.')
     return parser.parse_args(argv)
 
 

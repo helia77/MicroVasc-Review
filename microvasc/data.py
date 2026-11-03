@@ -6,13 +6,13 @@ import logging as log
 import skimage as ski
 
 
-def load_images(folder_path, num_img_range='all', stack=False, grayscale=False, crop_size=(0,0), crop_location = (0, 0)):
+def load_images(folder_path, image_range='all', stack=False, grayscale=False, crop_size=(0,0), crop_location = (0, 0)):
     """
     Load images from a folder into a numpy array or list.
 
     Args:
         folder_path (str): Path to the folder containing images.
-        num_img_range (str or list): Range of images to load. 'all' for all images, or [start, end] for a range.
+        image_range (str or list): Range of images to load. 'all' for all images, or [start, end] for a range.
         stack (bool): If True, return images as a stacked numpy array. Else, return a list of images.
         grayscale (bool): If True, load images as grayscale. Else, load as RGB.
         crop_size (tuple): Size of the crop (height, width). If (0, 0), no cropping is applied.
@@ -29,12 +29,12 @@ def load_images(folder_path, num_img_range='all', stack=False, grayscale=False, 
         log.warning(f"No images found in {folder_path}")
         return None
 
-    if num_img_range == 'all':
+    if image_range == 'all':
         img_range = (0, len(images_list))
-    elif isinstance(num_img_range, int):
-        img_range = (0, num_img_range)
+    elif isinstance(image_range, int):
+        img_range = (0, image_range)
     else:
-        img_range = num_img_range
+        img_range = image_range
         
     images = []
     for i in range(img_range[0], img_range[1]):
@@ -53,14 +53,14 @@ def load_images(folder_path, num_img_range='all', stack=False, grayscale=False, 
         return images
 
 
-def save_slices(volume, folder_path, number='all', file_format='bmp'):
+def save_slices(volume, folder_path, num_slices='all', file_format='bmp'):
     """
     Save slices of a 3D volume as images.
 
     Args:
         volume (np.ndarray): 3D volume to save.
         folder_path (str): Path to the output folder.
-        number (str or int): Number of slices to save. 'all' for all slices.
+        num_slices (str or int): Number of slices to save. 'all' for all slices.
         file_format (str): File format for saving images ('bmp' or 'png').
     """
     import cv2
@@ -68,10 +68,10 @@ def save_slices(volume, folder_path, number='all', file_format='bmp'):
         shutil.rmtree(folder_path)
     os.makedirs(folder_path)
         
-    if number == 'all':
-        number = volume.shape[0]
+    if num_slices == 'all':
+        num_slices = volume.shape[0]
         
-    for i in range(number):
+    for i in range(num_slices):
         img = volume[i]
         if np.max(img) == 1:
             img = (img * 255).astype(np.uint8)
@@ -154,20 +154,18 @@ def resample(data, spacing, output_spacing, interpolator=None):
 
     return sitk.GetArrayFromImage(resampled)
 
-def npy2obj(input_file, output_name, level=0.0):
+def npy2obj(volume, output_name, level=0.0):
     """
     Convert a numpy array to an OBJ file.
 
     Args:
-        input_file (str or np.ndarray): Input numpy array or file path.
+        volume (np.ndarray or str): Volume, or path of a .npy file.
         output_name (str): Output OBJ file path.
         level (float): Level for marching cubes.
     """
-    if isinstance(input_file, str):
-        volume = np.load(input_file)
-    elif isinstance(input_file, np.ndarray):
-        volume = input_file
-    else:
+    if isinstance(volume, str):
+        volume = np.load(volume)
+    elif not isinstance(volume, np.ndarray):
         raise ValueError("Input must be a numpy array or file path.")
         
     # marching cubes
@@ -179,7 +177,7 @@ def npy2obj(input_file, output_name, level=0.0):
         for face in faces:
             f.write(f'f {face[0]+1} {face[1]+1} {face[2]+1}\n')
 
-def npy2off(input_file, output_name, level=0.5):
+def npy2off(volume, output_name, level=0.5):
     """
     Convert a binarized volume to a surface mesh in OFF format (input of the Kerautret method).
 
@@ -187,18 +185,16 @@ def npy2off(input_file, output_name, level=0.5):
     The paper does not give the exact mesh settings.
 
     Args:
-        input_file (str, Path or np.ndarray): Input numpy array or .npy file path.
+        volume (np.ndarray, str or Path): Volume, or path of a .npy file.
         output_name (str or Path): Output OFF file path.
         level (float): Level for marching cubes. 0.5 (default) for 0/1 volumes.
 
     Returns:
         tuple: Number of vertices and faces written.
     """
-    if isinstance(input_file, np.ndarray):
-        volume = input_file
-    elif isinstance(input_file, (str, os.PathLike)):
-        volume = np.load(input_file)
-    else:
+    if isinstance(volume, (str, os.PathLike)):
+        volume = np.load(volume)
+    elif not isinstance(volume, np.ndarray):
         raise ValueError("Input must be a numpy array or file path.")
 
     # marching cubes
@@ -272,14 +268,14 @@ def cg2obj(input_file):
         outfile.write(modified)
         
 
-class vertex:
+class Vertex:
     """
     A helper class representing a vertex in a 3D network.
 
     Attributes:
         p (np.ndarray): The position of the vertex as a 3D array [x, y, z].
-        Eout (list): List of outgoing edges.
-        Ein (list): List of incoming edges.
+        e_out (list): List of outgoing edges.
+        e_in (list): List of incoming edges.
     """
     def __init__(self, x, y, z, e_out, e_in):
         """
@@ -291,11 +287,11 @@ class vertex:
             e_in (list): List of incoming edges.
         """
         self.p = np.array([x, y, z])
-        self.Eout = e_out
-        self.Ein = e_in
+        self.e_out = e_out
+        self.e_in = e_in
 
 
-class edge:
+class Edge:
     """
     A helper class representing an edge in a 3D network.
 
@@ -308,7 +304,7 @@ class edge:
         self.p = p
         
     
-class linesegment:
+class LineSegment:
     """
     A helper class representing a line segment in 3D space.
 
@@ -318,7 +314,7 @@ class linesegment:
     def __init__(self, p0, p1):
         self.p = (p0, p1)
 
-    def pointcloud(self, spacing):
+    def point_cloud(self, spacing):
         """
         Generate a point-cloud, sampling the line segment at the specified spacing.
 
@@ -345,8 +341,8 @@ class NWT:
     Attributes:
         header (str): Header of the NWT file.
         desc (str): Description of the network.
-        v (list): List of vertices in the network.
-        e (list): List of edges in the network.
+        vertices (list): List of vertices in the network.
+        edges (list): List of edges in the network.
     """
     def __init__(self, filename):
         """
@@ -376,21 +372,21 @@ class NWT:
         nv = struct.unpack("I", fid.read(4))[0]                         #load the number of vertices and edges
         ne = struct.unpack("I", fid.read(4))[0]
 
-        self.v = []                                                     #create an empty list to store the vertices        
+        self.vertices = []                                              #create an empty list to store the vertices        
         for _ in range(nv):                                             #iterate across all vertices
             p = np.fromfile(fid, np.float32, 3)                         #read the vertex position
             E = np.fromfile(fid, np.uint32, 2)                          #read the number of edges
             e_out = np.fromfile(fid, np.uint32, E[0])                   #read the indices of the outgoing edges
             e_in = np.fromfile(fid, np.uint32, E[1])                    #read the indices of the incoming edges
-            self.v.append(vertex(p[0], p[1], p[2], e_out, e_in))        #create a vertex
+            self.vertices.append(Vertex(p[0], p[1], p[2], e_out, e_in)) #create a vertex
             
-        self.e = []                                                     #create an empty array to store the edges        
+        self.edges = []                                                 #create an empty array to store the edges        
         for _ in range(ne):                                             #iterate over all edges            
             v = np.fromfile(fid, np.uint32, 2)                          #load the vertex indices that this edge connects            
             npts = struct.unpack("I", fid.read(4))[0]                   #read the number of points defining this edge            
             pv = np.fromfile(fid, np.float32, 4*npts)                   #read the array of points            
             p = [tuple(pv[i:i+4]) for i in range(0, 4*npts, 4)]         #group the values into (x, y, z, radius) tuples
-            self.e.append(edge(v[0], v[1], p))                          #create and append the edge to the edge list
+            self.edges.append(Edge(v[0], v[1], p))                      #create and append the edge to the edge list
     
     def load_obj(self, filename):
         """
@@ -426,23 +422,23 @@ class NWT:
         v_out = [[] for _ in range(len(vertex_set))]                    #create an array of empty lists storing the inlet and outlet edges for each vertex
         v_in = [[] for _ in range(len(vertex_set))]
 
-        self.e = []                                                     #create an empty list storing the NWT vertex IDs for each edge (inlet and outlet)
+        self.edges = []                                                 #create an empty list storing the NWT vertex IDs for each edge (inlet and outlet)
         for li, line in enumerate(lines):                               #for each line
             v0 = obj2nwt[line[0]]                                       #get the NWT index for the starting and ending points (vertices)
             v1 = obj2nwt[line[-1]]
             v_out[v0].append(li)                                        #add the line index to a list of inlet edges
             v_in[v1].append(li)                                         #add the line index to a list of outlet edges
             p = [np.array(vertices[pi - 1]) for pi in line[1:-1]]       #add the coordinates of the point that is not an end point in the NWT graph
-            self.e.append(edge(v0, v1, p))                              #create an edge, specifying the inlet and outlet vertices and all defining points
+            self.edges.append(Edge(v0, v1, p))                          #create an edge, specifying the inlet and outlet vertices and all defining points
 
         #for each vertex in the set, create a NWT vertex containing all of the necessary edge information
-        self.v = []                                                     #create an empty list to store the vertices
+        self.vertices = []                                              #create an empty list to store the vertices
         for si in vertex_set:                                           #for each OBJ vertex in the vertex set
             vi = obj2nwt[si]                                            #calculate the corresponding NWT index
-            self.v.append(vertex(vertices[si-1][0], vertices[si-1][1], vertices[si-1][2], v_out[vi], v_in[vi]))    #create a vertex object, consisting of a position and attached edges
+            self.vertices.append(Vertex(vertices[si-1][0], vertices[si-1][1], vertices[si-1][2], v_out[vi], v_in[vi])) #create a vertex object, consisting of a position and attached edges
 
 
-    def linesegments(self):
+    def line_segments(self):
         """
         Generate line segments for all edges in the network.
 
@@ -450,19 +446,19 @@ class NWT:
             list: A list of line segments.
         """
         segments = []                                                   #create an empty list of line segments
-        #print('num edges:', len(self.e))
-        for e in self.e:                                                #for each edge in the graph
-            p0 = self.v[e.v[0]].p                                       #load the first point (from the starting vertex)
+        #print('num edges:', len(self.edges))
+        for e in self.edges:                                            #for each edge in the graph
+            p0 = self.vertices[e.v[0]].p                                #load the first point (from the starting vertex)
             for p in e.p:                                               #for each point in the edge
                 p1 = np.array([p[0], p[1], p[2]])                       #get the second point for the line segment
-                segments.append(linesegment(p0, p1))                    #append the line segment to the list of line segments
+                segments.append(LineSegment(p0, p1))                    #append the line segment to the list of line segments
                 p0 = p1                                                 #update the start point for the next segment to the end point of this one
-            p1 = self.v[e.v[1]].p                                       #load the last point (from the ending vertex)
-            segments.append(linesegment(p0, p1))                        #append the last line segment for this edge to the list
+            p1 = self.vertices[e.v[1]].p                                #load the last point (from the ending vertex)
+            segments.append(LineSegment(p0, p1))                        #append the last line segment for this edge to the list
         return segments
 
  
-    def pointcloud(self, spacing):
+    def point_cloud(self, spacing):
         """
         Generate a point cloud sampling the network at the specified spacing.
 
@@ -472,12 +468,12 @@ class NWT:
         Returns:
             list: A list of points sampling the network.
         """
-        segments  = self.linesegments()
+        segments  = self.line_segments()
         pc = []
         for i, l in enumerate(segments ):
             if i%10000 == 0:
                 log.debug(f"Processed {i // 10000} segments.")
-            pc.extend(l.pointcloud(spacing))
+            pc.extend(l.point_cloud(spacing))
         return pc
     
     def save_obj(self, output_name):
@@ -489,11 +485,11 @@ class NWT:
         """
         with open(output_name, 'w') as output:
             output.write('# vertices\n')
-            for vert in self.v:             #vertex variable
+            for vert in self.vertices:      #vertex variable
                 x, y, z = vert.p
                 output.write(f'v {x} {y} {z}\n')
             output.write('# edges\n')
-            for edg in self.e:
+            for edg in self.edges:
                 v1, v2 = edg.v
                 output.write(f'l {v1+1} {v2+1}\n')
 

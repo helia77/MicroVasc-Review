@@ -59,8 +59,8 @@ Binarize, skeletonize and evaluate a synthetic tube:
 import numpy as np
 
 from microvasc.binarize import Binarizer
-from microvasc.skeleton import Skeletonize
-from microvasc.metrics.geometry import metric
+from microvasc.skeleton import Skeletonizer
+from microvasc.metrics.geometry import SegmentationMetrics
 from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
 # a bright tube along axis 0 on a dark, noisy background
@@ -70,11 +70,11 @@ rng = np.random.default_rng(0)
 volume = truth + 0.2 * rng.standard_normal(truth.shape)
 
 mask = Binarizer(volume, background="black").otsu3d()
-print("Jaccard", metric(truth, mask).jaccard())
+print("Jaccard", SegmentationMetrics(truth, mask).jaccard())
 
-skeleton = Skeletonize().lee(mask)
+skeleton = Skeletonizer().lee(mask)
 centerline = [[[0, 16, 16], [31, 16, 16]]]      # the true centerline as one segment
-precision, recall = netmets(voxel_skeleton_to_segments(skeleton), centerline, sigma=1.0)
+precision, recall = netmets(centerline, voxel_skeleton_to_segments(skeleton), sigma=1.0)
 print("NetMets precision", precision, "recall", recall)
 ```
 
@@ -124,5 +124,5 @@ The same information is in [CITATION.cff](CITATION.cff), which GitHub shows as "
 
 ## License
 
-MIT License, see [LICENSE](LICENSE). `Skeletonize.kline` is derived from poreture (BSD 3-clause),
+MIT License, see [LICENSE](LICENSE). `Skeletonizer.kline` is derived from poreture (BSD 3-clause),
 see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

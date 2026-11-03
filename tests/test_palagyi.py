@@ -5,7 +5,7 @@ from skimage.measure import euler_number
 
 import synthetic
 from capture_skeleton_golden import DATA, MASKS
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
 CONN26 = ndi.generate_binary_structure(3, 3)
 
@@ -13,7 +13,7 @@ CONN26 = ndi.generate_binary_structure(3, 3)
 @pytest.fixture(scope="module", params=list(MASKS))
 def case(request):
     mask = MASKS[request.param]()
-    return request.param, mask, Skeletonize().palagyi(mask.astype(np.uint8))
+    return request.param, mask, Skeletonizer().palagyi(mask.astype(np.uint8))
 
 
 def test_output_is_uint8_zero_one(case):
@@ -31,7 +31,7 @@ def test_subset_of_input(case):
 def test_one_voxel_thick(case):
     name, mask, skel = case
     # thinning a skeleton again changes nothing
-    np.testing.assert_array_equal(Skeletonize().palagyi(skel), skel)
+    np.testing.assert_array_equal(Skeletonizer().palagyi(skel), skel)
     # no 2x2x2 block of foreground voxels
     s = skel.astype(int)
     blocks = sum(s[i:s.shape[0] - 1 + i, j:s.shape[1] - 1 + j, k:s.shape[2] - 1 + k]
@@ -59,15 +59,15 @@ def test_matches_reference(case):
 @pytest.mark.parametrize("dtype", [bool, np.uint8, np.int32, float])
 def test_nonzero_values_count_as_foreground(dtype):
     mask = synthetic.tube_mask()
-    expected = Skeletonize().palagyi(mask.astype(np.uint8))
-    np.testing.assert_array_equal(Skeletonize().palagyi((mask * 255).astype(dtype)), expected)
-    out = Skeletonize().palagyi(mask.astype(dtype))
+    expected = Skeletonizer().palagyi(mask.astype(np.uint8))
+    np.testing.assert_array_equal(Skeletonizer().palagyi((mask * 255).astype(dtype)), expected)
+    out = Skeletonizer().palagyi(mask.astype(dtype))
     assert out.dtype == np.uint8
     np.testing.assert_array_equal(out, expected)
 
 
 def test_explicit_templates_path_gives_same_result():
     mask = synthetic.tube_mask().astype(np.uint8)
-    default = Skeletonize().palagyi(mask)
-    explicit = Skeletonize().palagyi(mask, Skeletonize.DEFAULT_TEMPLATES)
+    default = Skeletonizer().palagyi(mask)
+    explicit = Skeletonizer().palagyi(mask, Skeletonizer.DEFAULT_TEMPLATES)
     np.testing.assert_array_equal(default, explicit)

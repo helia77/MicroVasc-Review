@@ -2,7 +2,7 @@
 Tests for the parameter sweep scripts in microvasc/optimization/.
 
 These scripts could not run before (wrong imports and filter calls), so there are no earlier
-outputs to compare with; results are compared with direct Binarizer and metric calls instead.
+outputs to compare with; results are compared with direct Binarizer and SegmentationMetrics calls instead.
 """
 import os
 import shutil
@@ -15,7 +15,7 @@ import pytest
 
 import synthetic
 from microvasc.binarize import Binarizer
-from microvasc.metrics.geometry import metric
+from microvasc.metrics.geometry import SegmentationMetrics
 from microvasc.optimization import parameter_concat, parameter_fscore as pf
 
 ROOT = Path(__file__).parents[1]
@@ -36,19 +36,19 @@ def inputs(tmp_path_factory):
 
 def run_job(inputs, out, parameter, array_id, *extra):
     vol, gt = inputs
-    pf.main(pf.parse_args(["--parameter", parameter, "--input_volume", str(vol), "--ground_truth", str(gt),
-                           "--output_dir", str(out), "--array_id", str(array_id),
+    pf.main(pf.parse_args(["--parameter", parameter, "--input-volume", str(vol), "--ground-truth", str(gt),
+                           "--output-dir", str(out), "--array-id", str(array_id),
                            "--scale", *map(str, SCALE), *extra]))
 
 
 def concat(src, dst, parameter, *extra):
     parameter_concat.main(parameter_concat.parse_args(
-        ["--input_dir", str(src), "--output_dir", str(dst), "--parameter", parameter, *extra]))
+        ["--input-dir", str(src), "--output-dir", str(dst), "--parameter", parameter, *extra]))
 
 
 def frangi_scores(alpha, beta, c):
-    out = Binarizer(synthetic.tube()).frangi(alpha=alpha, beta=beta, c=c, scale_range=SCALE, threshold="otsu3d")
-    m = metric(synthetic.tube_mask(), out)
+    out = Binarizer(synthetic.tube()).frangi(alpha=alpha, beta=beta, c=c, scales=SCALE, threshold="otsu3d")
+    m = SegmentationMetrics(synthetic.tube_mask(), out)
     return m.f_score(), m.precision(), m.recall()
 
 
@@ -67,8 +67,8 @@ def test_alpha_c_grid_with_uneven_blocks(inputs, tmp_path):
     jobs = pf.job_count("alpha", N, step)
     assert jobs == 4
     for i in range(jobs):
-        run_job(inputs, tmp_path / "jobs", "alpha", i, "--ranges", str(N), "--step_size", str(step))
-    concat(tmp_path / "jobs", tmp_path, "alpha", "--step_size", str(step))
+        run_job(inputs, tmp_path / "jobs", "alpha", i, "--num-values", str(N), "--step-size", str(step))
+    concat(tmp_path / "jobs", tmp_path, "alpha", "--step-size", str(step))
     grid = np.load(tmp_path / "alpha_c_micro_fscores.npy")
     assert grid.shape == (N, N)
     alpha_range, c_range = pf.alpha_c_ranges(N)
@@ -83,7 +83,7 @@ def test_beta_sweep(inputs, tmp_path):
     last = pf.job_count("beta", N, 4) - 1
     assert last == N + 199
     for i in (0, 1, last):
-        run_job(inputs, tmp_path / "jobs", "beta", i, "--ranges", str(N), "--alpha", "0.5", "--c", "25")
+        run_job(inputs, tmp_path / "jobs", "beta", i, "--num-values", str(N), "--alpha", "0.5", "--c", "25")
     concat(tmp_path / "jobs", tmp_path, "beta")
     for name, k in (("fscore", 0), ("precision", 1), ("recall", 2)):
         values = np.load(tmp_path / f"beta_{name}.npy")
@@ -96,20 +96,21 @@ def test_beta_sweep(inputs, tmp_path):
 def test_tau_sweep(inputs, tmp_path):
     N = 2
     for i in range(N):
-        run_job(inputs, tmp_path / "jobs", "tau", i, "--ranges", str(N), "--background", "black")
+        run_job(inputs, tmp_path / "jobs", "tau", i, "--num-values", str(N), "--background", "black")
     concat(tmp_path / "jobs", tmp_path, "tau")
     fscore = np.load(tmp_path / "tau_fscore.npy")
     assert fscore.shape == (N,)
     for i, tau in enumerate(pf.tau_range(N)):
-        out = Binarizer(synthetic.tube()).bfrangi(tau=tau, scale_range=SCALE, threshold="otsu3d")
-        assert fscore[i] == metric(synthetic.tube_mask(), out).f_score()
+        out = Binarizer(synthetic.tube()).bfrangi(tau=tau, scales=SCALE, threshold="otsu3d")
+        assert fscore[i] == SegmentationMetrics(synthetic.tube_mask(), out).f_score()
 
 
-def test_bad_arguments(inputs, tmp_path):
+def test_bad_arguments(inputs, tmp_path, capsys):
     with pytest.raises(SystemExit):
-        run_job(inputs, tmp_path, "tau", 2, "--ranges", "2")          # only jobs 0 and 1 exist
+        run_job(inputs, tmp_path, "tau", 2, "--num-values", "2")      # only jobs 0 and 1 exist
     with pytest.raises(SystemExit):
-        pf.parse_args(["--parameter", "tau", "--array_id", "0"])     # missing inputs and --scale
+        pf.parse_args(["--parameter", "tau", "--array-id", "0"])     # missing inputs and --scale
+    assert "--input-volume, --ground-truth, --output-dir, --scale" in capsys.readouterr().err
     with pytest.raises(SystemExit):
         concat(tmp_path, tmp_path, "tau")                             # no result files
 
@@ -140,12 +141,12 @@ def test_submit_sets_array_from_sweep_length(tmp_path, parameter, ranges, array)
     fake_command(bin_dir, "sbatch", tmp_path / "sbatch.log")
     env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
     result = subprocess.run(["bash", "microvasc/optimization/submit.sh", parameter, "vol.npy", "gt.npy", "out",
-                             "--scale", "1", "2", "--ranges", ranges],
+                             "--scale", "1", "2", "--num-values", ranges],
                             cwd=ROOT, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     argv = (tmp_path / "sbatch.log").read_text().splitlines()
     assert argv == [f"--array={array}", "microvasc/optimization/parameter.sbatch", parameter, "vol.npy", "gt.npy", "out",
-                    "--scale", "1", "2", "--ranges", ranges]
+                    "--scale", "1", "2", "--num-values", ranges]
 
 
 @needs_bash
@@ -159,8 +160,8 @@ def test_sbatch_job_passes_arguments(tmp_path):
     result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "python.log").read_text().splitlines() == [
-        "-m", "microvasc.optimization.parameter_fscore", "--parameter", "tau", "--input_volume", "vol.npy",
-        "--ground_truth", "gt.npy", "--output_dir", "out", "--array_id", "7", "--scale", "1", "2"]
+        "-m", "microvasc.optimization.parameter_fscore", "--parameter", "tau", "--input-volume", "vol.npy",
+        "--ground-truth", "gt.npy", "--output-dir", "out", "--array-id", "7", "--scale", "1", "2"]
 
     del env["SLURM_ARRAY_TASK_ID"]
     result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, text=True)

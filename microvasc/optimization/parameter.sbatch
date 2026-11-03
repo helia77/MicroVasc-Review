@@ -20,12 +20,12 @@ PARAMETER=$1            # Parameter to process (alpha, beta, or tau)
 INPUT_VOLUME=$2         # Path to input volume
 GROUND_TRUTH=$3         # Path to ground truth
 OUTPUT_DIR=$4           # Directory to save output files
-shift 4                 # the rest (--scale, --ranges, --step_size, ...) goes to parameter_fscore
+shift 4                 # the rest (--scale, --num-values, --step-size, ...) goes to parameter_fscore
 
 python -m microvasc.optimization.parameter_fscore \
     --parameter "$PARAMETER" \
-    --input_volume "$INPUT_VOLUME" \
-    --ground_truth "$GROUND_TRUTH" \
-    --output_dir "$OUTPUT_DIR" \
-    --array_id "$SLURM_ARRAY_TASK_ID" \
+    --input-volume "$INPUT_VOLUME" \
+    --ground-truth "$GROUND_TRUTH" \
+    --output-dir "$OUTPUT_DIR" \
+    --array-id "$SLURM_ARRAY_TASK_ID" \
     "$@"

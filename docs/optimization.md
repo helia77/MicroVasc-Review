@@ -19,10 +19,10 @@ repository root.
 
 ## Sweeps
 
-| Sweep | Values (N = `--ranges`, default 100) | Fixed | Jobs |
+| Sweep | Values (N = `--num-values`, default 100) | Fixed | Jobs |
 |---|---|---|---|
-| `alpha` | alpha: `linspace(0, 2, N)`, c: `linspace(0, 50, N)` | beta = 1 | `ceil(N / step)^2` (625 for N = 100, `--step_size 4`) |
-| `beta` | N values in [0, 1], then 200 values in (1, 15] | alpha, c (`--alpha`, `--c`) | N + 200 (300 for N = 100, 500 for `--ranges 300`) |
+| `alpha` | alpha: `linspace(0, 2, N)`, c: `linspace(0, 50, N)` | beta = 1 | `ceil(N / step)^2` (625 for N = 100, `--step-size 4`) |
+| `beta` | N values in [0, 1], then 200 values in (1, 15] | alpha, c (`--alpha`, `--c`) | N + 200 (300 for N = 100, 500 for `--num-values 300`) |
 | `tau` | `linspace(0, 1, N)` | | N |
 
 The value lists are defined in `microvasc/optimization/parameter_fscore.py` (`alpha_c_ranges`,
@@ -39,31 +39,31 @@ SCALES="..."   # filter scales for the data set, for example "1 2 3"
 
 # 1. alpha and c
 microvasc/optimization/submit.sh alpha data/volume.npy data/ground_truth.npy results/alpha \
-    --scale $SCALES --ranges 100 --step_size 4
+    --scale $SCALES --num-values 100 --step-size 4
 
 # 2. beta, with the best alpha and c from step 1 (defaults: --alpha 0.005 --c 22.73)
 microvasc/optimization/submit.sh beta data/volume.npy data/ground_truth.npy results/beta \
-    --scale $SCALES --ranges 100 --alpha <alpha> --c <c>
+    --scale $SCALES --num-values 100 --alpha <alpha> --c <c>
 
 # 3. tau (Beyond Frangi)
 microvasc/optimization/submit.sh tau data/volume.npy data/ground_truth.npy results/tau \
-    --scale $SCALES --ranges 100
+    --scale $SCALES --num-values 100
 ```
 
 To see the number of jobs without submitting:
 
 ```bash
-python -m microvasc.optimization.parameter_fscore --parameter beta --ranges 100 --jobs
+python -m microvasc.optimization.parameter_fscore --parameter beta --num-values 100 --jobs
 ```
 
 Without Slurm, run the jobs in a loop, with the same options:
 
 ```bash
-JOBS=$(python -m microvasc.optimization.parameter_fscore --parameter tau --ranges 100 --jobs)
+JOBS=$(python -m microvasc.optimization.parameter_fscore --parameter tau --num-values 100 --jobs)
 for i in $(seq 0 $((JOBS - 1))); do
-    python -m microvasc.optimization.parameter_fscore --parameter tau --input_volume data/volume.npy \
-        --ground_truth data/ground_truth.npy --output_dir results/tau --array_id $i \
-        --scale $SCALES --ranges 100
+    python -m microvasc.optimization.parameter_fscore --parameter tau --input-volume data/volume.npy \
+        --ground-truth data/ground_truth.npy --output-dir results/tau --array-id $i \
+        --scale $SCALES --num-values 100
 done
 ```
 
@@ -74,9 +74,9 @@ columns alpha). Each beta or tau job writes `Fscore_<id>_.npy`, `Precision_<id>_
 ## Concatenation
 
 ```bash
-python -m microvasc.optimization.parameter_concat --input_dir results/alpha --output_dir results --parameter alpha --step_size 4
-python -m microvasc.optimization.parameter_concat --input_dir results/beta --output_dir results --parameter beta
-python -m microvasc.optimization.parameter_concat --input_dir results/tau --output_dir results --parameter tau
+python -m microvasc.optimization.parameter_concat --input-dir results/alpha --output-dir results --parameter alpha --step-size 4
+python -m microvasc.optimization.parameter_concat --input-dir results/beta --output-dir results --parameter beta
+python -m microvasc.optimization.parameter_concat --input-dir results/tau --output-dir results --parameter tau
 ```
 
 This writes `alpha_c_micro_fscores.npy` (rows c, columns alpha), `beta_fscore.npy`,
@@ -85,7 +85,7 @@ the files found. Values of jobs that did not finish stay 0, so check the Slurm l
 
 ## Picking the best values
 
-Use the same N (`--ranges`) as in the sweep:
+Use the same N (`--num-values`) as in the sweep:
 
 ```python
 import numpy as np

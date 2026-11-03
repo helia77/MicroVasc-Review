@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
 DATA = Path(__file__).parent / "data" / "kline_golden.npz"
 SOURCE = Path(__file__).parents[1] / "microvasc" / "skeleton.py"
@@ -25,7 +25,7 @@ CASES = {
     "bifurcation": (synthetic.bifurcation_mask, (2, 14, 14)),
     "torus": (synthetic.torus_mask, (7, 24, 16)),
 }
-# (dmw, mbtr): the defaults and the weights used for the KESM volume in the paper
+# (dist_map_weight, min_branch_to_root): the defaults and the weights used for the KESM volume in the paper
 WEIGHTS = {"defaults": (6, 10), "kesm": (19.25, 10.11)}
 
 
@@ -46,7 +46,7 @@ def main():
     for name, (make, root) in CASES.items():
         mask = make().astype(np.uint8)
         for weights, (dmw, mbtr) in WEIGHTS.items():
-            skel = Skeletonize().kline(mask, root, dmw=dmw, mbtr=mbtr)
+            skel = Skeletonizer().kline(mask, root, dist_map_weight=dmw, min_branch_to_root=mbtr)
             arrays[case_key(name, weights)] = np.packbits(skel.ravel())
     arrays["meta__skeleton_sha256"] = np.array(hashlib.sha256(SOURCE.read_bytes()).hexdigest())
     arrays["meta__versions"] = np.array(f"numpy {np.__version__}, scikit-fmm {skfmm.__version__}")

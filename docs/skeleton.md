@@ -38,8 +38,8 @@ reused in all 12 subiterations. The paper checks every point again in each subit
 
 Kline's fast marching centerline extraction. It needs the `kline` extra
 (`pip install -e ".[kline]"`). `--root` is the index of the root voxel along array axes 0, 1 and 2
-and must be a vessel voxel. `--dmw` is the distance map weight (default 6) and `--mbtr` the
-minimum distance from an endpoint to the root, in voxels (default 10). These are the settings used
+and must be a vessel voxel. `--dist-map-weight` is the distance map weight (default 6) and
+`--min-branch-to-root` the minimum distance from an endpoint to the root, in voxels (default 10). These are the settings used
 for the KESM volume in the paper:
 
 ```bash
@@ -47,8 +47,8 @@ skeleton kline \
   --input path/to/binary.npy \
   --output path/to/centerline.npy \
   --root 95 76 35 \
-  --dmw 19.25 \
-  --mbtr 10.11
+  --dist-map-weight 19.25 \
+  --min-branch-to-root 10.11
 ```
 
 With a distance map weight of 19.25 the result depends on floating point rounding, so the skeleton
@@ -112,12 +112,12 @@ the defaults are 2.0, 3.0, 10.0 and 0.5, as in CDCVAM.
 ## Python
 
 ```python
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
-ske = Skeletonize()
+ske = Skeletonizer()
 skeleton = ske.lee(mask)
 skeleton = ske.palagyi(mask)
-centerline = ske.kline(mask, (95, 76, 35), dmw=19.25, mbtr=10.11)
+centerline = ske.kline(mask, (95, 76, 35), dist_map_weight=19.25, min_branch_to_root=10.11)
 obj_path = ske.kerautret("path/to/centerLineGeodesicGraph", "path/to/mesh.off", "path/to/out/tree")
 ```
 

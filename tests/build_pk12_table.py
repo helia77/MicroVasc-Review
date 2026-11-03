@@ -1,6 +1,6 @@
 """
 Build the Palagyi lookup table from the templates T1 to T14 and compare it with the
-table that Skeletonize.palagyi loads by default.
+table that Skeletonizer.palagyi loads by default.
 
 Entry i is True when the 3x3x3 neighborhood of a black point matches at least one
 template of T_US, where bit k of i is the value of the neighbor at BIT_OFFSETS[k].
@@ -64,7 +64,7 @@ def main():
     parser.add_argument("--output", type=Path, default=None, help="Save the built table to this .npz file.")
     args = parser.parse_args()
 
-    from microvasc.skeleton import Skeletonize
+    from microvasc.skeleton import Skeletonizer
 
     table = build_table()
     print(f"built:   {table.size} entries, {int(table.sum())} deletable, "
@@ -73,9 +73,9 @@ def main():
         np.savez_compressed(args.output, pk12=np.packbits(table))
         print(f"saved to {args.output}")
 
-    bundled = Skeletonize()._load_table(Skeletonize.DEFAULT_TEMPLATES)
+    bundled = Skeletonizer()._load_table(Skeletonizer.DEFAULT_TEMPLATES)
     print(f"bundled: {bundled.size} entries, {int(bundled.sum())} deletable, "
-          f"data sha256 {hashlib.sha256(bundled.tobytes()).hexdigest()} ({Skeletonize.DEFAULT_TEMPLATES})")
+          f"data sha256 {hashlib.sha256(bundled.tobytes()).hexdigest()} ({Skeletonizer.DEFAULT_TEMPLATES})")
     if bundled.dtype != table.dtype or bundled.shape != table.shape:
         print(f"bundled table has dtype {bundled.dtype} and shape {bundled.shape}, "
               f"expected {table.dtype} and {table.shape}")

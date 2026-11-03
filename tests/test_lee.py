@@ -4,7 +4,7 @@ import scipy.ndimage as ndi
 from skimage.measure import euler_number
 
 import synthetic
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
 CONN26 = ndi.generate_binary_structure(3, 3)
 MASKS = {
@@ -17,7 +17,7 @@ MASKS = {
 @pytest.fixture(scope="module", params=list(MASKS))
 def case(request):
     mask = MASKS[request.param]()
-    return mask, Skeletonize().lee(mask.astype(np.uint8))
+    return mask, Skeletonizer().lee(mask.astype(np.uint8))
 
 
 def test_output_is_uint8_zero_one(case):
@@ -35,7 +35,7 @@ def test_subset_of_input(case):
 def test_one_voxel_thick(case):
     mask, skel = case
     # thinning a skeleton again changes nothing
-    np.testing.assert_array_equal(Skeletonize().lee(skel), skel)
+    np.testing.assert_array_equal(Skeletonizer().lee(skel), skel)
     # no 2x2x2 block of foreground voxels
     s = skel.astype(int)
     blocks = sum(s[i:s.shape[0] - 1 + i, j:s.shape[1] - 1 + j, k:s.shape[2] - 1 + k]
@@ -55,5 +55,5 @@ def test_same_euler_number(case):
 
 def test_nonzero_values_count_as_foreground():
     mask = synthetic.tube_mask()
-    np.testing.assert_array_equal(Skeletonize().lee(mask.astype(np.uint8) * 255),
-                                  Skeletonize().lee(mask))
+    np.testing.assert_array_equal(Skeletonizer().lee(mask.astype(np.uint8) * 255),
+                                  Skeletonizer().lee(mask))

@@ -39,8 +39,8 @@ def as_segments(network, scale=1.0) -> np.ndarray:
         scale: factor applied to the coordinates (for example the voxel size in um), a number
             or one value per axis.
     """
-    if hasattr(network, "linesegments"):
-        network = [(s.p[0], s.p[1]) for s in network.linesegments()]
+    if hasattr(network, "line_segments"):
+        network = [(s.p[0], s.p[1]) for s in network.line_segments()]
     segments = np.asarray(network, dtype=float)
     if segments.size == 0:
         return segments.reshape(0, 2, 3)
@@ -130,57 +130,58 @@ def _distance_to_segments(points, segments, max_piece):
     return out
 
 
-def netmets_similarity(A, B, sigma: float = 1.0, scale_a=1.0, scale_b=1.0) -> float:
+def netmets_similarity(a, b, sigma: float = 1.0, scale_a=1.0, scale_b=1.0) -> float:
     """
-    NetMets similarity M(A, B): the length-weighted fraction of A that lies close to B.
+    NetMets similarity M(a, b): the length-weighted fraction of a that lies close to b.
 
     Args:
-        A, B: networks, as accepted by `as_segments`.
+        a, b: networks, as accepted by `as_segments`.
         sigma: sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
-        scale_a, scale_b: factors that convert the coordinates of A and B to that unit
+        scale_a, scale_b: factors that convert the coordinates of a and b to that unit
             (for example the voxel size in um), a number or one value per axis.
 
     Returns:
-        A value in [0, 1]. When A has no length, returns 1.0 if B has no length either,
+        A value in [0, 1]. When a has no length, returns 1.0 if b has no length either,
         and 0.0 otherwise.
     """
     if not sigma > 0:
         raise ValueError("sigma must be positive")
-    A, B = as_segments(A, scale_a), as_segments(B, scale_b)
-    lengths = np.linalg.norm(A[:, 1] - A[:, 0], axis=1)
+    a, b = as_segments(a, scale_a), as_segments(b, scale_b)
+    lengths = np.linalg.norm(a[:, 1] - a[:, 0], axis=1)
     total = lengths.sum()
     if total == 0:
-        b_length = np.linalg.norm(B[:, 1] - B[:, 0], axis=1).sum()
+        b_length = np.linalg.norm(b[:, 1] - b[:, 0], axis=1).sum()
         return 1.0 if b_length == 0 else 0.0
-    if len(B) == 0:
+    if len(b) == 0:
         return 0.0
 
-    # midpoint rule along each segment of A, steps of at most sigma / 10
+    # midpoint rule along each segment of a, steps of at most sigma / 10
     keep = lengths > 0
-    A, lengths = A[keep], lengths[keep]
+    a, lengths = a[keep], lengths[keep]
     n = np.ceil(lengths / (sigma / 10)).astype(np.int64)
-    seg = np.repeat(np.arange(len(A)), n)
+    seg = np.repeat(np.arange(len(a)), n)
     k = np.arange(len(seg)) - np.repeat(np.cumsum(n) - n, n)
     t = (k + 0.5) / n[seg]
-    points = A[seg, 0] + (A[seg, 1] - A[seg, 0]) * t[:, None]
+    points = a[seg, 0] + (a[seg, 1] - a[seg, 0]) * t[:, None]
     dt = (lengths / n)[seg]
 
-    d = _distance_to_segments(points, B, max_piece=sigma)
+    d = _distance_to_segments(points, b, max_piece=sigma)
     return float(np.sum(dt * np.exp(-d**2 / (2 * sigma**2))) / total)
 
 
-def netmets(test, ground_truth, sigma: float = 1.0, test_scale=1.0, truth_scale=1.0):
+def netmets(ground_truth, test, sigma: float = 1.0, truth_scale=1.0, test_scale=1.0):
     """
     NetMets precision and recall of a test skeleton against a ground truth.
 
-    Precision P = M(test, ground_truth) is the fraction of the test skeleton that matches the
-    ground truth. Recall R = M(ground_truth, test) is the fraction of the ground truth found in
-    the test skeleton. Voxel skeletons must first go through `voxel_skeleton_to_segments`.
+    The ground truth comes first, as in `SegmentationMetrics`. Precision P = M(test, ground_truth)
+    is the fraction of the test skeleton that matches the ground truth. Recall
+    R = M(ground_truth, test) is the fraction of the ground truth found in the test skeleton.
+    Voxel skeletons must first go through `voxel_skeleton_to_segments`.
 
     Args:
-        test, ground_truth: networks, as accepted by `as_segments`, with the same axis order.
+        ground_truth, test: networks, as accepted by `as_segments`, with the same axis order.
         sigma: sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
-        test_scale, truth_scale: factors that convert each input's coordinates to the unit of
+        truth_scale, test_scale: factors that convert each input's coordinates to the unit of
             sigma (for example its voxel size in um), a number or one value per axis.
 
     Returns:

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import synthetic
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
 ROOT = Path(__file__).parents[1]
 
@@ -37,18 +37,18 @@ def test_skeleton_lee(tmp_path):
     assert result.returncode == 0, result.stderr
     out = np.load(tmp_path / "out.npy")
     assert out.dtype == np.uint8
-    np.testing.assert_array_equal(out, Skeletonize().lee(mask))
+    np.testing.assert_array_equal(out, Skeletonizer().lee(mask))
 
 
 @pytest.mark.parametrize("templates", [False, True], ids=["bundled", "explicit"])
 def test_skeleton_palagyi(tmp_path, templates):
     mask = synthetic.tube_mask().astype(np.uint8)
     np.save(tmp_path / "in.npy", mask)
-    extra = ["--templates", str(Skeletonize.DEFAULT_TEMPLATES)] if templates else []
+    extra = ["--templates", str(Skeletonizer.DEFAULT_TEMPLATES)] if templates else []
     result = run("-m", "microvasc.skeleton", "palagyi",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"), *extra)
     assert result.returncode == 0, result.stderr
-    np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonize().palagyi(mask))
+    np.testing.assert_array_equal(np.load(tmp_path / "out.npy"), Skeletonizer().palagyi(mask))
 
 
 def test_skeleton_kline(tmp_path):
@@ -57,11 +57,11 @@ def test_skeleton_kline(tmp_path):
     np.save(tmp_path / "in.npy", mask)
     result = run("-m", "microvasc.skeleton", "kline",
                  "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"),
-                 "--root", "3", "5", "2", "--dmw", "6", "--mbtr", "10")
+                 "--root", "3", "5", "2", "--dist-map-weight", "6", "--min-branch-to-root", "10")
     assert result.returncode == 0, result.stderr
     out = np.load(tmp_path / "out.npy")
     assert out.dtype == np.uint8
-    np.testing.assert_array_equal(out, Skeletonize().kline(mask, (3, 5, 2), dmw=6, mbtr=10))
+    np.testing.assert_array_equal(out, Skeletonizer().kline(mask, (3, 5, 2), dist_map_weight=6, min_branch_to_root=10))
 
 
 def test_skeleton_kline_bad_root(tmp_path):

@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import synthetic
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 
 DATA = Path(__file__).parent / "data" / "skeleton_golden.npz"
 SOURCE = Path(__file__).parents[1] / "microvasc" / "skeleton.py"
@@ -35,7 +35,7 @@ def main():
 
     arrays = {}
     for name, make in MASKS.items():
-        skel = Skeletonize().palagyi(make().astype(np.uint8))
+        skel = Skeletonizer().palagyi(make().astype(np.uint8))
         arrays[f"palagyi__{name}"] = np.packbits(skel.ravel())
     arrays["meta__skeleton_sha256"] = np.array(hashlib.sha256(SOURCE.read_bytes()).hexdigest())
     arrays["meta__numpy"] = np.array(np.__version__)

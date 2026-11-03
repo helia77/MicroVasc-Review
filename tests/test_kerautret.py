@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from microvasc.skeleton import Skeletonize
+from microvasc.skeleton import Skeletonizer
 from microvasc import data as md
 
 EXPECTED_OBJ = """\
@@ -28,20 +28,20 @@ def test_command_line(tmp_path, mesh, fake_cdcvam):
     exe, read_log = fake_cdcvam
     prefix = tmp_path / "out" / "tree"
     prefix.parent.mkdir()
-    Skeletonize().kerautret(exe, mesh, prefix, dilateDist=1.5, deltaG=2.0, radius=12.0, threshold=0.25)
+    Skeletonizer().kerautret(exe, mesh, prefix, dilate_dist=1.5, delta_g=2.0, radius=12.0, threshold=0.25)
     assert read_log()["argv"] == [str(exe), "-i", str(mesh), "-o", str(prefix),
                                   "--dilateDist", "1.5", "-g", "2.0", "-R", "12.0", "-t", "0.25"]
 
 
 def test_default_parameters(tmp_path, mesh, fake_cdcvam):
     exe, read_log = fake_cdcvam
-    Skeletonize().kerautret(exe, mesh, tmp_path / "tree")
+    Skeletonizer().kerautret(exe, mesh, tmp_path / "tree")
     assert read_log()["argv"][5:] == ["--dilateDist", "2.0", "-g", "3.0", "-R", "10.0", "-t", "0.5"]
 
 
 def test_writes_obj(tmp_path, mesh, fake_cdcvam):
     exe, _ = fake_cdcvam
-    obj = Skeletonize().kerautret(exe, mesh, tmp_path / "tree")
+    obj = Skeletonizer().kerautret(exe, mesh, tmp_path / "tree")
     assert obj == tmp_path / "tree.obj"
     assert obj.read_text() == EXPECTED_OBJ
 
@@ -55,7 +55,7 @@ def test_removes_only_old_files_of_this_prefix(tmp_path, mesh, fake_cdcvam):
     for f in own + others:
         f.write_text("stale\n")
 
-    Skeletonize().kerautret(exe, mesh, prefix)
+    Skeletonizer().kerautret(exe, mesh, prefix)
 
     assert read_log()["existing"] == []
     # the fake writes Vertex and Edges again, but not Radius
@@ -66,7 +66,7 @@ def test_removes_only_old_files_of_this_prefix(tmp_path, mesh, fake_cdcvam):
 def test_missing_executable(tmp_path, mesh, fake_cdcvam):
     _, read_log = fake_cdcvam
     with pytest.raises(FileNotFoundError, match="github.com/kerautret/CDCVAM"):
-        Skeletonize().kerautret(tmp_path / "missing", mesh, tmp_path / "tree")
+        Skeletonizer().kerautret(tmp_path / "missing", mesh, tmp_path / "tree")
     assert read_log() is None
 
 
@@ -74,14 +74,14 @@ def test_executable_without_execute_permission(tmp_path, mesh, fake_cdcvam):
     exe, read_log = fake_cdcvam
     exe.chmod(0o644)
     with pytest.raises(FileNotFoundError, match="not executable"):
-        Skeletonize().kerautret(exe, mesh, tmp_path / "tree")
+        Skeletonizer().kerautret(exe, mesh, tmp_path / "tree")
     assert read_log() is None
 
 
 def test_missing_mesh(tmp_path, fake_cdcvam):
     exe, read_log = fake_cdcvam
     with pytest.raises(FileNotFoundError, match="mesh"):
-        Skeletonize().kerautret(exe, tmp_path / "missing.off", tmp_path / "tree")
+        Skeletonizer().kerautret(exe, tmp_path / "missing.off", tmp_path / "tree")
     assert read_log() is None
 
 

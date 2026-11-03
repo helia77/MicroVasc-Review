@@ -50,9 +50,9 @@ def run_case(volume, background, method, threshold):
     if method in ("otsu2d", "otsu3d"):
         return getattr(binzr, method)()
     if method == "frangi":
-        return binzr.frangi(scale_range=SCALES, threshold=threshold, **FRANGI)
+        return binzr.frangi(scales=SCALES, threshold=threshold, **FRANGI)
     if method == "bfrangi":
-        return binzr.bfrangi(tau=TAU, scale_range=SCALES, threshold=threshold)
+        return binzr.bfrangi(tau=TAU, scales=SCALES, threshold=threshold)
     raise ValueError(method)
 
 

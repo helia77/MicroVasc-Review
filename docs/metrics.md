@@ -5,9 +5,9 @@
 Voxel-wise comparison of a binary prediction with a binary ground truth.
 
 ```python
-from microvasc.metrics.geometry import metric
+from microvasc.metrics.geometry import SegmentationMetrics
 
-m = metric(ground_truth, prediction)
+m = SegmentationMetrics(ground_truth, prediction)
 m.jaccard(), m.dice(), m.precision(), m.recall()
 ```
 
@@ -16,7 +16,7 @@ m.jaccard(), m.dice(), m.precision(), m.recall()
 | `jaccard()` | TP / (TP + FP + FN) |
 | `dice()`, `f_score()` | 2TP / (2TP + FP + FN) |
 | `precision()` | TP / (TP + FP) |
-| `recall()`, `TPR()` | TP / (TP + FN) |
+| `recall()` | TP / (TP + FN) |
 
 When both masks are empty, Jaccard, Dice, precision and recall return 1.0. Any other zero
 denominator gives 0.0. The F-score and the Jaccard index are related by J = F / (2 - F).
@@ -33,6 +33,9 @@ where L is the total length of A, d(x, B) is the distance from x to the closest 
 sigma is the sensitivity. For a test skeleton T and a ground truth G, precision is M(T, G), the
 fraction of T close to G, and recall is M(G, T), the fraction of G found in T. The paper uses
 sigma = 1 um.
+
+`netmets(ground_truth, test)` returns (P, R). The ground truth comes first, as in
+`SegmentationMetrics(ground_truth, prediction)`.
 
 The integral uses the midpoint rule with steps of at most sigma / 10, and d is the exact distance
 to the nearest segment of B. The NetMets software measures d between sample points, so values may
@@ -59,12 +62,12 @@ from microvasc.metrics.network import netmets, voxel_skeleton_to_segments
 
 test = voxel_skeleton_to_segments(skeleton)        # voxel units, array axes 0, 1, 2
 truth = NWT("path/to/ground_truth.obj")
-P, R = netmets(test, truth, sigma=1.0,
-               test_scale=voxel_size_um,           # number, or one value per axis
-               truth_scale=truth_unit_um)
+P, R = netmets(truth, test, sigma=1.0,
+               truth_scale=truth_unit_um,
+               test_scale=voxel_size_um)           # number, or one value per axis
 ```
 
-`netmets_similarity(A, B, sigma, scale_a, scale_b)` computes M(A, B) alone.
+`netmets_similarity(a, b, sigma, scale_a, scale_b)` computes M(a, b) alone.
 
 Give the voxel size either to `voxel_skeleton_to_segments` or as `test_scale`, not both. Both
 inputs must use the same axis order: `voxel_skeleton_to_segments` returns array axes 0, 1 and 2.
