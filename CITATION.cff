@@ -6,6 +6,16 @@ authors:
   - family-names: Goharbavang
     given-names: Helya
     orcid: "https://orcid.org/0009-0004-0836-5917"
+    affiliation: "University of Houston"
+abstract: "Segmentation and skeletonization of large-scale microvascular networks"
+keywords:
+  - microvasculature
+  - vascular networks
+  - segmentation
+  - skeletonization
+  - centerline extraction
+  - vessel enhancement
+  - 3D microscopy
 version: 0.2.0
 repository-code: "https://github.com/helia77/MicroVasc-Review"
 license: MIT
