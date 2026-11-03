@@ -1,6 +1,6 @@
 # Parameter optimization
 
-These scripts sweep the Frangi parameters (alpha and c, then beta) and the Beyond Frangi
+The scripts in `optimization/` sweep the Frangi parameters (alpha and c, then beta) and the Beyond Frangi
 parameter tau on a volume with a ground truth segmentation. Each job runs the filter, thresholds
 the result with 3D Otsu and scores it against the ground truth. The sweeps run as Slurm job
 arrays, one job per parameter value (or per block of the alpha/c grid).
@@ -13,7 +13,7 @@ From the repository root, in the Python environment used on the cluster:
 pip install -e .
 ```
 
-`parameter.sbatch` loads `python/3.9` with `module load`. Change that line, the job name and the
+`optimization/parameter.sbatch` loads `python/3.9` with `module load`. Change that line, the job name and the
 resources (`-t`, `--mem-per-cpu`) to fit your cluster. Run all commands below from the
 repository root.
 

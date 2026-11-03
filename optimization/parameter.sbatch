@@ -6,7 +6,7 @@
 #SBATCH --mem-per-cpu=2GB
 
 # One job of a parameter sweep. Submit with optimization/submit.sh, which sets --array
-# from the length of the sweep. See optimization/optimization.md.
+# from the length of the sweep. See docs/optimization.md.
 
 module load python/3.9
 
