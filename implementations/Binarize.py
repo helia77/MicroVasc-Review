@@ -230,6 +230,10 @@ class Binarizer:
         """
         Beyond Frangi filter for 3D tubular enhancement.
 
+        The regularization uses tau * max(|lambda3|) at each scale, taken before the sign is
+        flipped for the background. Jerman's vesselness3D.m flips the sign first and uses the
+        signed maximum, max(lambda3), so results can differ between the two.
+
         Args:
             tau: Beyond Frangi parameter (regularization).
             scale_range: List of scales for scale space.
