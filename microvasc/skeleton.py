@@ -371,7 +371,7 @@ def main():
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
-    parser = argparse.ArgumentParser("3D Skeleton CLI")
+    parser = argparse.ArgumentParser(description="Skeletonization method to apply.")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     # lee subcommand

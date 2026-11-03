@@ -25,6 +25,7 @@ def test_skeleton_help_without_optional_packages():
     result = run("-c", NO_OPTIONAL + "sys.argv = ['skeleton', '--help']\n"
                  "from microvasc.skeleton import main\nmain()")
     assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("usage: skeleton ")
     for cmd in ("lee", "palagyi", "kerautret", "kline"):
         assert cmd in result.stdout
 
