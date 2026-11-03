@@ -21,9 +21,9 @@ from optimization import parameter_concat, parameter_fscore as pf
 ROOT = Path(__file__).parents[1]
 SCALE = [1.0]
 needs_bash = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
-# the sweeps start at alpha, beta, c = 0, where Frangi divides by the smallest float and numpy
-# warns about the overflow; the result is still defined, and the script ignores these warnings
-sweep_overflow = pytest.mark.filterwarnings("ignore:overflow encountered:RuntimeWarning")
+# the sweeps start at alpha, beta, c = 0, where Frangi divides by the smallest float and the
+# division overflows to -inf; exp(-inf) = 0 is the intended result, so the overflow is not reported
+sweep_overflow = np.errstate(over="ignore")
 
 
 @pytest.fixture(scope="module")
