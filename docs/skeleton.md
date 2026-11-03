@@ -51,6 +51,9 @@ skeleton kline \
   --mbtr 10.11
 ```
 
+With a distance map weight of 19.25 the result depends on floating point rounding, so the skeleton
+can differ between machines or library builds. Smaller weights, like the default 6, are stable.
+
 The method follows the code used for the paper, which is based on
 [poreture](https://github.com/TLKline/poreture). It differs from poreture's `kline_vessel` in two
 ways: both fast marches use an all-ones speed array over the bounding box (poreture uses the vessel
