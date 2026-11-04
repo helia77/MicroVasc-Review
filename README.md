@@ -1,5 +1,9 @@
 # microvasc: segmentation and skeletonization of large-scale microvascular networks
 
+[![PyPI](https://img.shields.io/pypi/v/microvasc)](https://pypi.org/project/microvasc/)
+[![tests](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml/badge.svg)](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23933580.svg)](https://doi.org/10.5281/zenodo.23933580)
+
 Code for the paper [Segmentation and modeling of large-scale microvascular networks: a survey](https://doi.org/10.3389/fbinf.2025.1645520)
 (Frontiers in Bioinformatics, 2025).
 
@@ -25,6 +29,12 @@ are not implemented here. The documentation pages link to their implementations.
 Python 3.9 or newer. The test workflow runs on Python 3.12 and 3.14.
 
 ```bash
+pip install microvasc
+```
+
+To work on the code, install from a clone:
+
+```bash
 git clone https://github.com/helia77/MicroVasc-Review.git
 cd MicroVasc-Review
 pip install -e .
@@ -40,9 +50,11 @@ The core install needs only NumPy, SciPy and scikit-image. Optional parts are in
 | `all` | all of the above | |
 
 ```bash
-pip install -e ".[kline]"
-pip install -e ".[all]"
+pip install "microvasc[kline]"
+pip install "microvasc[all]"
 ```
+
+From a clone, use `pip install -e ".[kline]"` or `pip install -e ".[all]"`.
 
 On some platforms pip builds scikit-fmm from source, which needs a compiler and the Python
 development headers.
@@ -106,7 +118,8 @@ The imaging data and annotations used in the paper are not included in this repo
 
 ## Citation
 
-If you use this code or the paper, please cite the paper:
+If you use this code, please cite the paper below and the software through its Zenodo DOI,
+[10.5281/zenodo.23933580](https://doi.org/10.5281/zenodo.23933580).
 
 ```bibtex
 @article{goharbavang2025segmentation,

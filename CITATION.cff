@@ -18,6 +18,7 @@ keywords:
   - 3D microscopy
 version: 0.2.0
 date-released: 2026-11-03
+doi: 10.5281/zenodo.23933580
 repository-code: "https://github.com/helia77/MicroVasc-Review"
 license: MIT
 preferred-citation:

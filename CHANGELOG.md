@@ -3,6 +3,8 @@
 All notable changes to this project are documented in this file. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
 ## [0.2.0] - 2026-11-03
 
 ### Added
@@ -96,4 +98,5 @@ All notable changes to this project are documented in this file. The format foll
 - `TPR()` and `FPR()` of the segmentation metrics. Use `recall()` and `fall_out()`.
 - `--ranges` of `parameter_concat`. Array sizes come from the result files.
 
+[Unreleased]: https://github.com/helia77/MicroVasc-Review/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/helia77/MicroVasc-Review/releases/tag/v0.2.0
