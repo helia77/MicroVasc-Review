@@ -1,8 +1,6 @@
 # Skeletonization
 
-<p align="center">
-  <img src="skeleton.gif" alt="Skeletonization" width="100%" />
-</p>
+![Skeletonization](skeleton.gif)
 
 `skeleton` implements four of the skeletonization methods from the paper: Lee thinning, Palágyi
 thinning, Kline's fast marching method, and a wrapper around the external Kerautret program.

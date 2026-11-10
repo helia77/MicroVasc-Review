@@ -1,8 +1,6 @@
 # Binarization
 
-<p align="center">
-  <img src="segmentation.gif" alt="Segmentation" width="100%" />
-</p>
+![Segmentation](segmentation.gif)
 
 `binarize` implements four of the binarization methods from the paper: Otsu's thresholding in
 2D and 3D, Frangi vesselness and Beyond Frangi. All subcommands read a 3D `.npy` volume and
