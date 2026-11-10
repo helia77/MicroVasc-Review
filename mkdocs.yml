@@ -1,0 +1,41 @@
+site_name: microvasc
+site_description: Segmentation and skeletonization of large-scale microvascular networks
+site_url: https://helia77.github.io/MicroVasc-Review/
+repo_url: https://github.com/helia77/MicroVasc-Review
+repo_name: helia77/MicroVasc-Review
+edit_uri: edit/main/docs/
+
+# the docs build dependencies live in docs/, but are not a page
+exclude_docs: |
+  requirements.txt
+
+theme:
+  name: material
+  features:
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Binarization: binarize.md
+  - Skeletonization: skeleton.md
+  - Metrics: metrics.md
+  - Parameter optimization: optimization.md
+  - Data conversion: data.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
