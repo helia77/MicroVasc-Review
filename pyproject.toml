@@ -41,6 +41,7 @@ skeleton = "microvasc.skeleton:main"
 
 [project.urls]
 Homepage = "https://github.com/helia77/MicroVasc-Review"
+Documentation = "https://www.helia-gohar.com/MicroVasc-Review/"
 Paper = "https://doi.org/10.3389/fbinf.2025.1645520"
 
 [tool.setuptools]

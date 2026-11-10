@@ -26,6 +26,19 @@ Without scikit-fmm the Kline tests are skipped, and `-ra` lists them. CI runs th
 you rewrite the file with the matching `tests/capture_*.py --force` script, and say so in the pull
 request.
 
+## Documentation
+
+The site at https://www.helia-gohar.com/MicroVasc-Review/ is built with MkDocs from `docs/` and
+`mkdocs.yml`. To preview it locally:
+
+```bash
+pip install -r docs/requirements.txt
+mkdocs serve
+```
+
+Then open http://127.0.0.1:8000. CI runs `mkdocs build --strict`, which fails on warnings such as
+broken links, and deploys the site from `main`.
+
 ## Commit messages
 
 One line: lowercase tags in brackets, then a capitalized summary in the imperative mood, at most

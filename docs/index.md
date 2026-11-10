@@ -21,4 +21,6 @@ Paper: Goharbavang et al., "Segmentation and modeling of large-scale microvascul
 survey", Frontiers in Bioinformatics, 2025
 ([doi:10.3389/fbinf.2025.1645520](https://doi.org/10.3389/fbinf.2025.1645520)).
 
+Paper project page: [helia-gohar.com/project/microvascular-modeling-review](https://www.helia-gohar.com/project/microvascular-modeling-review/).
+
 Software, all versions: [doi:10.5281/zenodo.23933580](https://doi.org/10.5281/zenodo.23933580).

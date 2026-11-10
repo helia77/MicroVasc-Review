@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Documentation site at https://www.helia-gohar.com/MicroVasc-Review/, built with MkDocs and
+  deployed from `main` by GitHub Actions.
+
 ## [0.2.0] - 2026-11-03
 
 ### Added

@@ -105,6 +105,8 @@ skeleton lee --input mask.npy --output skeleton.npy
 
 ## Documentation
 
+The documentation is also published at https://www.helia-gohar.com/MicroVasc-Review/.
+
 | Page | Contents |
 |---|---|
 | [Binarization](docs/binarize.md) | Otsu, Frangi, Beyond Frangi, CLI options, and external methods |
