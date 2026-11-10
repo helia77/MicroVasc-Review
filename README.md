@@ -1,36 +1,58 @@
-# microvasc: segmentation and skeletonization of large-scale microvascular networks
+# microvasc
+
+Segmentation, skeletonization, and evaluation of 3D microvascular networks in Python.
 
 [![PyPI](https://img.shields.io/pypi/v/microvasc)](https://pypi.org/project/microvasc/)
 [![tests](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml/badge.svg)](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23933580.svg)](https://doi.org/10.5281/zenodo.23933580)
 
-Code for the paper [Segmentation and modeling of large-scale microvascular networks: a survey](https://doi.org/10.3389/fbinf.2025.1645520)
-(Frontiers in Bioinformatics, 2025).
+Companion code for [Segmentation and modeling of large-scale microvascular networks: a survey](https://doi.org/10.3389/fbinf.2025.1645520) (Frontiers in Bioinformatics, 2025).
 
 <p align="center">
-  <img src="docs/overview.png" alt="Overview Diagram" width="100%" />
+  <img src="docs/overview.png" alt="Overview of the binarization, skeletonization and evaluation steps" width="100%" />
 </p>
 
-## Pipeline
+## What it does
 
-The code covers the three stages compared in the paper:
+`microvasc` covers three steps of 3D microvascular image processing:
 
-1. **Binarize** a 3D volume: `binarize otsu2d`, `otsu3d`, `frangi`, `bfrangi`.
-2. **Skeletonize** the binary volume: `skeleton lee`, `palagyi`, `kline`, and `kerautret`
-   (a wrapper around the external CDCVAM program).
-3. **Evaluate** the results against a ground truth: Jaccard, Dice, precision and recall for
-   binary volumes, NetMets precision and recall for skeletons.
+| Step | Methods |
+|---|---|
+| Binarization | Otsu (2D and 3D), Frangi, Beyond Frangi |
+| Skeletonization | Lee, Palágyi, Kline, Kerautret |
+| Evaluation | Jaccard, Dice, precision, recall, NetMets |
 
-The other methods in the paper (Optimally Oriented Flux, U-Net, nnU-Net, Tagliasacchi, Antiga)
-are not implemented here. The documentation pages link to their implementations.
+Kerautret calls the external CDCVAM program, which must be built separately. See [Skeletonization](docs/skeleton.md).
+
+The paper evaluates these methods on KESM, LSFM, and micro-CT data.
+
+The package includes a subset of the methods compared in the paper. Optimally Oriented Flux, U-Net, nnU-Net, Tagliasacchi, and Antiga are not included. The documentation lists them, with links to their implementations where available.
 
 ## Installation
 
-Python 3.9 or newer. The test workflow runs on Python 3.12 and 3.14.
+Requires Python 3.9 or newer. Tests run on Python 3.12 and 3.14.
 
 ```bash
 pip install microvasc
 ```
+
+The core dependencies are NumPy, SciPy, and scikit-image.
+
+Optional dependencies are available as extras:
+
+| Extra | Installs | Needed for |
+|---|---|---|
+| `kline` | scikit-fmm | `skeleton kline` |
+| `io` | opencv-python, pynrrd, SimpleITK | Image stacks, NRRD files, and resampling in `microvasc.data` |
+| `test` | pytest | Running tests |
+| `all` | All of the above | |
+
+```bash
+pip install "microvasc[kline]"
+pip install "microvasc[all]"
+```
+
+On some platforms pip builds scikit-fmm from source, which needs a compiler and Python development headers.
 
 To work on the code, install from a clone:
 
@@ -40,24 +62,7 @@ cd MicroVasc-Review
 pip install -e .
 ```
 
-The core install needs only NumPy, SciPy and scikit-image. Optional parts are installed as extras:
-
-| Extra | Installs | Needed for |
-|---|---|---|
-| `kline` | scikit-fmm | `skeleton kline` |
-| `io` | opencv-python, pynrrd, SimpleITK | image stacks, NRRD files and resampling in `microvasc.data` |
-| `test` | pytest | running the tests |
-| `all` | all of the above | |
-
-```bash
-pip install "microvasc[kline]"
-pip install "microvasc[all]"
-```
-
-From a clone, use `pip install -e ".[kline]"` or `pip install -e ".[all]"`.
-
-On some platforms pip builds scikit-fmm from source, which needs a compiler and the Python
-development headers.
+From a clone, use `pip install -e ".[kline]"` or `pip install -e ".[all]"` for the extras.
 
 ## Quick start
 
@@ -102,24 +107,21 @@ skeleton lee --input mask.npy --output skeleton.npy
 
 | Page | Contents |
 |---|---|
-| [Binarization](docs/binarize.md) | Otsu, Frangi and Beyond Frangi, `binarize` options, external methods |
-| [Skeletonization](docs/skeleton.md) | Lee, Palágyi, Kline and Kerautret, `skeleton` options, settings used in the paper |
-| [Metrics](docs/metrics.md) | Jaccard, Dice, precision, recall, and NetMets with per-input scales |
-| [Parameter optimization](docs/optimization.md) | Slurm sweeps for alpha, c, beta and tau, and J = F / (2 - F) |
-| [Data conversion](docs/data.md) | NWT, OBJ, OFF, NRRD and image stack helpers in `microvasc.data` |
+| [Binarization](docs/binarize.md) | Otsu, Frangi, Beyond Frangi, CLI options, and external methods |
+| [Skeletonization](docs/skeleton.md) | Lee, Palágyi, Kline, Kerautret, CLI options, and paper settings |
+| [Metrics](docs/metrics.md) | Jaccard, Dice, precision, recall, and NetMets |
+| [Parameter optimization](docs/optimization.md) | Slurm sweeps for the Frangi and Beyond Frangi parameters |
+| [Data conversion](docs/data.md) | NWT, OBJ, OFF, NRRD, and image stack utilities |
 
-Development setup and tests: [CONTRIBUTING.md](CONTRIBUTING.md).
+For development setup and tests, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Data availability
 
-Data availability: TODO
-
-The imaging data and annotations used in the paper are not included in this repository.
+The imaging data and annotations used in the paper are not in this repository. They are available from the authors on request.
 
 ## Citation
 
-If you use this code, please cite the paper below and the software through its Zenodo DOI,
-[10.5281/zenodo.23933580](https://doi.org/10.5281/zenodo.23933580).
+If you use `microvasc`, please cite the [paper](https://doi.org/10.3389/fbinf.2025.1645520) and the software through its Zenodo DOI, [10.5281/zenodo.23933580](https://doi.org/10.5281/zenodo.23933580).
 
 ```bibtex
 @article{goharbavang2025segmentation,
@@ -134,9 +136,10 @@ If you use this code, please cite the paper below and the software through its Z
 }
 ```
 
-The same information is in [CITATION.cff](CITATION.cff), which GitHub shows as "Cite this repository".
+Citation metadata is also in [CITATION.cff](CITATION.cff), which GitHub shows as "Cite this repository".
 
 ## License
 
-MIT License, see [LICENSE](LICENSE). `Skeletonizer.kline` is derived from poreture (BSD 3-clause),
-see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT License. See [LICENSE](LICENSE).
+
+`Skeletonizer.kline` is derived from poreture (BSD 3-clause). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
