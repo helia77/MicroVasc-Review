@@ -1,17 +1,7 @@
 # Binarization
 
 <div>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
 <model-viewer id="viewer-segmentation" src="https://www.helia-gohar.com/data/mesh/ground_segmentation.glb" alt="3D model of a segmented microvascular network" camera-controls shadow-intensity="1" scale="-1 1 -1" style="width: 100%; height: 400px"></model-viewer>
-<script type="module">
-const modelViewer = document.getElementById("viewer-segmentation");
-modelViewer.addEventListener("load", () => {
-  const material = modelViewer.model.materials[0];
-  material.pbrMetallicRoughness.setBaseColorFactor("#e09568");
-  material.pbrMetallicRoughness.setMetallicFactor(1);
-  material.pbrMetallicRoughness.setRoughnessFactor(1);
-});
-</script>
 </div>
 
 `binarize` implements four of the binarization methods from the paper: Otsu's thresholding in

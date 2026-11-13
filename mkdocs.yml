@@ -40,6 +40,10 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.superfences
 
+extra_javascript:
+  - path: javascripts/viewer.js
+    type: module
+
 extra:
   analytics:
     provider: google
