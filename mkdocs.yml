@@ -39,3 +39,8 @@ markdown_extensions:
       permalink: true
   - pymdownx.highlight
   - pymdownx.superfences
+
+extra:
+  analytics:
+    provider: google
+    property: G-TQNFXSV0DJ

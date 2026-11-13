@@ -3,6 +3,7 @@
 Segmentation, skeletonization, and evaluation of 3D microvascular networks in Python.
 
 [![PyPI](https://img.shields.io/pypi/v/microvasc)](https://pypi.org/project/microvasc/)
+[![Downloads](https://static.pepy.tech/badge/microvasc)](https://pepy.tech/project/microvasc)
 [![tests](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml/badge.svg)](https://github.com/helia77/MicroVasc-Review/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23933580.svg)](https://doi.org/10.5281/zenodo.23933580)
 
