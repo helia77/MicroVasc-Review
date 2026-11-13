@@ -5,8 +5,6 @@
 <model-viewer src="https://www.helia-gohar.com/data/mesh/ground_centerline.glb" alt="3D model of a microvascular network centerline" camera-controls style="width: 100%; height: 400px"></model-viewer>
 </div>
 
-![Skeletonization](skeleton.gif)
-
 `skeleton` implements four of the skeletonization methods from the paper: Lee thinning, Palágyi
 thinning, Kline's fast marching method, and a wrapper around the external Kerautret program.
 
