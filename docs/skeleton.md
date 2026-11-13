@@ -1,5 +1,10 @@
 # Skeletonization
 
+<div>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
+<model-viewer src="https://www.helia-gohar.com/data/mesh/ground_centerline.glb" alt="3D model of a microvascular network centerline" camera-controls style="width: 100%; height: 400px"></model-viewer>
+</div>
+
 ![Skeletonization](skeleton.gif)
 
 `skeleton` implements four of the skeletonization methods from the paper: Lee thinning, Palágyi

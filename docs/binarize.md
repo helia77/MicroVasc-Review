@@ -1,5 +1,10 @@
 # Binarization
 
+<div>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
+<model-viewer src="https://www.helia-gohar.com/data/mesh/ground_segmentation.glb" alt="3D model of a segmented microvascular network" camera-controls style="width: 100%; height: 400px"></model-viewer>
+</div>
+
 ![Segmentation](segmentation.gif)
 
 `binarize` implements four of the binarization methods from the paper: Otsu's thresholding in
