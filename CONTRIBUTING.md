@@ -36,8 +36,9 @@ pip install -r docs/requirements.txt
 mkdocs serve
 ```
 
-Then open http://127.0.0.1:8000. CI runs `mkdocs build --strict`, which fails on warnings such as
-broken links, and deploys the site from `main`.
+Then open http://127.0.0.1:8000/MicroVasc-Review/ (the path comes from `site_url` in
+`mkdocs.yml`). CI runs `mkdocs build --strict`, which fails on warnings such as broken links, and
+deploys the site from `main`.
 
 ## Commit messages
 
