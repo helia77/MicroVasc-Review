@@ -115,6 +115,7 @@ The documentation is also published at https://www.helia-gohar.com/MicroVasc-Rev
 | [Metrics](docs/metrics.md) | Jaccard, Dice, precision, recall, and NetMets |
 | [Parameter optimization](docs/optimization.md) | Slurm sweeps for the Frangi and Beyond Frangi parameters |
 | [Data conversion](docs/data.md) | NWT, OBJ, OFF, NRRD, and image stack utilities |
+| [Citation](docs/citation.md) | Software and paper DOIs, BibTeX, and works that use microvasc |
 
 For development setup and tests, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

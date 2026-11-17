@@ -14,6 +14,7 @@ pip install microvasc
 | [Metrics](metrics.md) | Jaccard, Dice, precision, recall, and NetMets with per-input scales |
 | [Parameter optimization](optimization.md) | Slurm sweeps for alpha, c, beta and tau, and J = F / (2 - F) |
 | [Data conversion](data.md) | NWT, OBJ, OFF, NRRD and image stack helpers in `microvasc.data` |
+| [Citation](citation.md) | Software and paper DOIs, BibTeX, and works that use microvasc |
 
 ## Citation
 

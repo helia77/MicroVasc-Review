@@ -32,6 +32,7 @@ nav:
   - Metrics: metrics.md
   - Parameter optimization: optimization.md
   - Data conversion: data.md
+  - Citation: citation.md
 
 markdown_extensions:
   - admonition
