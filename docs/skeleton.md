@@ -121,6 +121,8 @@ centerline = ske.kline(mask, (95, 76, 35), dist_map_weight=19.25, min_branch_to_
 obj_path = ske.kerautret("path/to/centerLineGeodesicGraph", "path/to/mesh.off", "path/to/out/tree")
 ```
 
+All arguments and return values are listed in the [API reference](api/skeleton.md).
+
 ## External skeletonization methods
 
 The paper also covers methods that are not implemented here:

@@ -35,6 +35,7 @@ nav:
   - Citation: citation.md
   - API reference:
       - binarize: api/binarize.md
+      - skeleton: api/skeleton.md
 
 plugins:
   - search

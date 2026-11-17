@@ -8,13 +8,25 @@ import scipy.ndimage as ndi
 from microvasc import data as md
 from pathlib import Path
 import skimage.morphology as mph
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
 class Skeletonizer:
     """
-    Wraps multiple 3D skeletonization algorithms.
+    Skeletonize binarized 3D volumes with Lee, Palagyi, Kline or Kerautret.
+
+    Attributes:
+        DEFAULT_TEMPLATES: Path of the Palagyi lookup table installed with the package.
+
+    Examples:
+        >>> import numpy as np
+        >>> from microvasc.skeleton import Skeletonizer
+        >>> volume = np.zeros((7, 7, 15), dtype=np.uint8)
+        >>> volume[2:5, 2:5, 2:13] = 1
+        >>> skeleton = Skeletonizer().lee(volume)
+        >>> skeleton.dtype, int(skeleton.sum())
+        (dtype('uint8'), 9)
     """
     # Palagyi lookup table shipped with the package
     DEFAULT_TEMPLATES = Path(__file__).with_name("PK12.npz")
@@ -26,42 +38,49 @@ class Skeletonizer:
         
     def lee(self, volume: np.ndarray) -> np.ndarray:
         """
-        3D thinning via Lee's algorithm.
-        
-        References:
-        .. [Lee94] T.-C. Lee, R.L. Kashyap and C.-N. Chu, Building skeleton models
-           via 3-D medial surface/axis thinning algorithms.
-           Computer Vision, Graphics, and Image Processing, 56(6):462-478, 1994.
-            
-        For full description, refer to https://github.com/scikit-image/scikit-image/blob/main/skimage/morphology/_skeletonize.py
+        Lee thinning, with skimage.morphology.skeletonize(volume, method='lee').
+
+        Args:
+            volume: Binarized 3D volume. Any nonzero voxel is foreground.
 
         Returns:
-            uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
+            uint8 array of 0 and 1, same shape as the input.
+
+        References:
+            T.-C. Lee, R. L. Kashyap and C.-N. Chu, Building skeleton models via 3-D medial
+            surface/axis thinning algorithms. Computer Vision, Graphics, and Image Processing
+            56(6), 462-478, 1994.
         """
         logger.info("Running Lee's thinning.")
         return mph.skeletonize(volume, method='lee').astype(np.uint8)
     
     
-    def palagyi(self, volume: np.ndarray, templates_path: Optional[Path] = None) -> np.ndarray:
+    def palagyi(self, volume: np.ndarray, templates_path: Optional[Union[str, Path]] = None) -> np.ndarray:
         """
-        3D thinning via Palágyi's method (12-subiteration curve thinning).
-
-        Requires:
-            "PK12.npz" lookup table of the deletion templates T1-T14 (direction US).
-            Defaults to the PK12.npz bundled next to this file. tests/build_pk12_table.py
-            rebuilds it from the templates of the paper. A bool .npy table also works.
+        Palagyi and Kuba 12-subiteration curve thinning.
 
         Axis 0 points east, axis 1 north and axis 2 up. Each iteration runs 12 subiterations
         in the order US, NE, WD, ES, UW, ND, SW, UN, ED, NW, UE, SD and deletes all matching
         points of a subiteration together. Voxels outside the volume count as white.
-        Border points are found once per iteration and reused in all 12 subiterations; the paper re-checks every point in each subiteration.
+        Border points are found once per iteration and reused in all 12 subiterations. The
+        paper checks every point again in each subiteration.
 
-        References:
-        .. [Palagy1999] Palagyi & Kuba, A Parallel 3D 12-Subiteration Thinning Algorithm,
-            Graphical Models and Image Processing 61, 199-221 (1999).
+        Args:
+            volume: Binarized 3D volume. Any nonzero voxel is foreground.
+            templates_path: Lookup table of the deletion templates T1 to T14 (direction US),
+                as a .npz file with packed bits under "pk12" or a bool .npy file with 2^26
+                entries. None (default) uses DEFAULT_TEMPLATES. tests/build_pk12_table.py
+                rebuilds the table from the templates of the paper.
 
         Returns:
-            uint8 array of 0 and 1, same shape as the input. Any nonzero input voxel is foreground.
+            uint8 array of 0 and 1, same shape as the input.
+
+        Raises:
+            ValueError: If the lookup table does not have 2^26 entries.
+
+        References:
+            K. Palagyi and A. Kuba, A Parallel 3D 12-Subiteration Thinning Algorithm.
+            Graphical Models and Image Processing 61, 199-221, 1999.
         """
         table = self._load_table(self.DEFAULT_TEMPLATES if templates_path is None else templates_path)
         logger.info("Running Palagyi's thinning.")
@@ -124,28 +143,36 @@ class Skeletonizer:
                      for u, n, e in itertools.product((-1, 0, 1), repeat=3) if (u, n, e) != (0, 0, 0)]
         return np.array(neighbors) @ strides
   
-    def kerautret(self, exe_path: Path, off_path: Path, output_prefix: Path,
-                  dilate_dist: Optional[float]=2.0, delta_g: Optional[float]=3.0, radius: Optional[float]=10.0, threshold: Optional[float]=0.5):
+    def kerautret(self, exe_path: Union[str, Path], off_path: Union[str, Path], output_prefix: Union[str, Path],
+                  dilate_dist: float=2.0, delta_g: float=3.0, radius: float=10.0, threshold: float=0.5) -> Path:
         """
-        Run external Kerautret binary on OFF mesh.
-        The exe file can be obtained by compiling the main Kerautret's project.
-        Returns path to generated OBJ.
-        -> Based on https://github.com/kerautret/CDCVAM (@author: kerautret)
-        
+        Run the external CDCVAM program centerLineGeodesicGraph on a surface mesh.
+
+        CDCVAM (https://github.com/kerautret/CDCVAM) must be built separately. Old .sdp files
+        of the same output prefix are removed before the run.
+
         Args:
-            exe_path:           Path to the CDCVAM "centerLineGeodesicGraph" executable
-            off_path:           Path to the input surface mesh (OFF format)
-            output_prefix:      Output prefix. Writes <prefix>Vertex.sdp, <prefix>Edges.sdp,
-                                <prefix>Radius.sdp and <prefix>.obj
-            dilate_dist:        Dilate distance of the confidence voxels. 2.0 (default)
-            delta_g:            The parameter to consider interval of distances. 3.0  (default)
-            radius:             The radius used to compute the accumulation. 10.0  (default)
-            threshold:          The threshold in the confidence estimation. 0.5  (default)
+            exe_path: Path to the centerLineGeodesicGraph executable.
+            off_path: Path to the input surface mesh in OFF format.
+            output_prefix: Output prefix. Writes <prefix>Vertex.sdp, <prefix>Edges.sdp,
+                <prefix>Radius.sdp and <prefix>.obj.
+            dilate_dist: Dilate distance of the confidence voxels.
+            delta_g: Interval of distances considered.
+            radius: Radius used to compute the accumulation.
+            threshold: Threshold in the confidence estimation.
+
+        Returns:
+            Path of the OBJ file, <prefix>.obj.
+
+        Raises:
+            FileNotFoundError: If the executable is missing or not executable, if the mesh is
+                missing, or if the program did not write <prefix>Vertex.sdp and <prefix>Edges.sdp.
+            subprocess.CalledProcessError: If the program exits with an error.
 
         References:
-        .. [Kerautret2016] B. Kerautret, A. Krähenbühl, I. Debled-Rennesson and J. -O. Lachaud,
-        "Centerline detection on partial mesh scans by confidence vote in accumulation map," 2016,
-        pp. 1376-1381, doi: 10.1109/ICPR.2016.7899829.
+            B. Kerautret, A. Krähenbühl, I. Debled-Rennesson and J.-O. Lachaud, Centerline
+            detection on partial mesh scans by confidence vote in accumulation map. ICPR 2016,
+            1376-1381, doi:10.1109/ICPR.2016.7899829.
         """
         exe_path, off_path, output_prefix = Path(exe_path), Path(off_path), Path(output_prefix)
         if not exe_path.is_file() or not os.access(exe_path, os.X_OK):
@@ -181,35 +208,40 @@ class Skeletonizer:
         logger.info("Kerautret output at %s", obj_path)
         return obj_path
             
-    def kline(self, volume: np.ndarray, root: Tuple[int, int, int], dist_map_weight: float=6, min_branch_to_root: float=10):
+    def kline(self, volume: np.ndarray, root: Tuple[int, int, int], dist_map_weight: float=6, min_branch_to_root: float=10) -> np.ndarray:
         """
-        Kline's method.
-        -> Based on https://github.com/TLKline/poreture (@author: TLKline)
-        This follows the code used for the results in the paper. Single root only.
-        poreture is under the BSD 3-clause license, see THIRD_PARTY_NOTICES.md.
-        
-        Args:
-            volume: Binarized volume. Any nonzero voxel is foreground.
-            root: Index of the root voxel along axes 0, 1 and 2. It must lie on a vessel voxel.
+        Kline's fast marching centerline extraction from a single root. Needs scikit-fmm.
 
-            dist_map_weight: Weight for distance map. Defaults to 6.
-            min_branch_to_root: Minimum Euclidean distance (in voxels) from an endpoint
-                to the root. Defaults to 10.
+        This follows the code used for the paper, which is based on poreture
+        (https://github.com/TLKline/poreture, BSD 3-clause license, see
+        THIRD_PARTY_NOTICES.md). It differs from poreture's kline_vessel in two ways. Both
+        fast marches use an all-ones speed array over the bounding box (np.ones_like(phi)),
+        and the distance map is computed from it; poreture uses the vessel mask
+        (constant_speed = B2.copy()). poreture reads cluster_graph_weight and
+        min_branch_length but does not use them, so they are not parameters here.
+
+        With a large dist_map_weight, such as 19.25, the result depends on floating point
+        rounding and can differ between machines.
+
+        Args:
+            volume: Binarized 3D volume. Any nonzero voxel is foreground.
+            root: Index of the root voxel along axes 0, 1 and 2. It must lie on a vessel voxel.
+            dist_map_weight: Exponent of the distance map, used as the speed of the second
+                fast march.
+            min_branch_to_root: Minimum Euclidean distance, in voxels, from an endpoint to the
+                root. Endpoints at this distance or closer are not traced.
 
         Returns:
-            uint8 array of 0 and 1, same shape as the input, containing a 1-D skeleton of the input volume.
+            uint8 array of 0 and 1, same shape as the input, with the centerline.
 
-        Differences from poreture's kline_vessel:
-            - Both fast marches use an all-ones speed array over the bounding box
-              (np.ones_like(phi)), and the distance map is computed from it. poreture uses
-              the vessel mask (constant_speed = B2.copy()).
-            - poreture reads cluster_graph_weight and min_branch_length but does not use them
-              in the computation. They are not parameters here.
+        Raises:
+            ValueError: If the volume is not 3D, root does not have 3 indices, or root is
+                outside the volume or not on a vessel voxel.
+            ImportError: If scikit-fmm is not installed.
 
-        Reference:
-            kline_vessel - [Kline et al. ABME 2010]
-            kline_pore - [Kline et al. J Porous Mat 2011]
-            
+        References:
+            Kline et al., Annals of Biomedical Engineering, 2010 (kline_vessel).
+            Kline et al., Journal of Porous Materials, 2011 (kline_pore).
         """
         root = tuple(int(c) for c in root)
         if volume.ndim != 3 or len(root) != 3:
@@ -332,14 +364,15 @@ class Skeletonizer:
 
         return final_centerline
 
-    def _detect_local_maxima(self, vol: np.ndarray):
+    def _detect_local_maxima(self, vol: np.ndarray) -> Tuple[List[int], List[int], List[int]]:
         """
-        Detects the peaks using the local maximum filter.
-        
+        Find the nonzero voxels that are the maximum of their 26-neighborhood.
+
         Args:
             vol: Input volume.
+
         Returns:
-            A boolean mask of the peaks (i.e. 1 when the pixel's value is the neighborhood maximum, 0 otherwise)
+            The indices of the peaks along axes 0, 1 and 2, as three lists in C order.
         """
         # define a 26-connected neighborhood
         neighborhood = ndi.generate_binary_structure(3,3) # first is dimension, next is relative connectivity
@@ -366,7 +399,15 @@ class Skeletonizer:
         return x, y, z
     
     
-def main():
+def main() -> None:
+    """
+    Run the skeleton command: load the input, apply the method, save the result.
+
+    Subcommands are lee, palagyi, kline and kerautret. For example:
+
+        skeleton lee --input binary.npy --output skeleton.npy
+        skeleton kline --input binary.npy --output centerline.npy --root 95 76 35
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
