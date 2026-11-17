@@ -33,6 +33,8 @@ nav:
   - Parameter optimization: optimization.md
   - Data conversion: data.md
   - Citation: citation.md
+  - API reference:
+      - binarize: api/binarize.md
 
 plugins:
   - search

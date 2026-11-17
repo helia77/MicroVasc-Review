@@ -5,20 +5,33 @@ import argparse
 import numpy as np
 from pathlib import Path
 import scipy.ndimage as ndi
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 class Binarizer:
     """
-    A class to binarize 3D volumes using Otsu's thresholding, Frangi and Beyond Frangi filter.
-    
+    Binarize a 3D volume with Otsu thresholding, Frangi or Beyond Frangi.
+
     Args:
         volume: 3D grayscale volume.
-        background: 'black' (default) or 'white'.
+        background: 'black' (default) for bright vessels on a dark background, 'white' for
+            dark vessels on a bright background.
+
+    Raises:
+        ValueError: If background is not 'black' or 'white'.
+
+    Examples:
+        >>> import numpy as np
+        >>> from microvasc.binarize import Binarizer
+        >>> volume = np.zeros((5, 5, 5))
+        >>> volume[1:4, 1:4, 1:4] = 100
+        >>> mask = Binarizer(volume).otsu3d()
+        >>> mask.dtype, int(mask.sum())
+        (dtype('uint8'), 27)
     """
-    
-    def __init__(self, volume: np.ndarray, background: str = 'black'):
+
+    def __init__(self, volume: np.ndarray, background: str = 'black') -> None:
         if background not in ("black", "white"):
             raise ValueError("background must be 'black' or 'white'")
         self.volume = volume
@@ -75,13 +88,31 @@ class Binarizer:
 
     def otsu3d(self) -> np.ndarray:
         """
-        3D Otsu's thresholding.
+        Threshold the whole volume with Otsu's method.
+
+        The threshold comes from a 256-bin histogram of all voxels. Voxels at or above it are
+        foreground for a black background, at or below it for a white background.
+
+        Returns:
+            uint8 array of 0 and 1, same shape as the volume.
+
+        Raises:
+            ValueError: If the volume is empty.
         """
         return self._otsu3d(self.volume, self.background)
 
     def otsu2d(self) -> np.ndarray:
         """
-        Slice-by-slice Otsu thresholding.
+        Threshold each slice along axis 0 with its own Otsu threshold.
+
+        Each threshold comes from a 256-bin histogram of that slice. Foreground is chosen as
+        in `otsu3d`.
+
+        Returns:
+            uint8 array of 0 and 1, same shape as the volume.
+
+        Raises:
+            ValueError: If the volume is empty.
         """
         return self._otsu2d(self.volume, self.background)
 
@@ -96,12 +127,16 @@ class Binarizer:
             return self._otsu3d(vesselness, 'black')
         return None
 
-    def _hessian(self, scale: float):
+    def _hessian(self, scale: float) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Compute the Hessian mask at a given scale.
+        Compute the scale-normalized Hessian at a given scale.
 
         Args:
             scale: Sigma for Gaussian derivatives.
+
+        Returns:
+            The Hessian, shape volume.shape + (3, 3), and the uint8 mask of the voxels where
+            vesselness is computed (Yang and Cheng). The Hessian is zero outside the mask.
         """
         X, Y, Z = self.volume.shape
         Hxx = np.zeros((X, Y, Z))
@@ -168,13 +203,24 @@ class Binarizer:
 
     def frangi(self, alpha: float, beta: float, c: float, scales: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
-        Frangi (aka. vesselness) filter for 3D tubular enhancement.
+        Frangi vesselness filter.
+
+        Eigenvalues are sorted so that |lambda1| <= |lambda2| <= |lambda3|. The Hessian is
+        scale-normalized with gamma = 2. Voxels outside the Yang and Cheng mask get 0.
 
         Args:
-            alpha, beta, c: Frangi parameters.
-            scales: List of scales for scale space.
-            threshold: None to filter, 'otsu2d' or 'otsu3d' to binarize the volume.
-        """         
+            alpha: Weight of the ratio R_A = |lambda2| / |lambda3|.
+            beta: Weight of the ratio R_B = |lambda1| / sqrt(|lambda2 * lambda3|).
+            c: Weight of the structure term S = sqrt(lambda1^2 + lambda2^2 + lambda3^2).
+                For alpha, beta and c, 0 is replaced by the smallest positive float.
+            scales: Gaussian sigmas in voxels. The response is the maximum over the scales.
+            threshold: None (default) returns the vesselness. 'otsu2d' or 'otsu3d' thresholds
+                it with Otsu, treating the vesselness as bright on black for either background.
+
+        Returns:
+            float64 vesselness in [0, 1], or a uint8 array of 0 and 1 when threshold is set.
+                Same shape as the volume.
+        """
         logger.info("Running Frangi filter on %d scales.", len(scales))
         all_filters = []
         alpha2 = 2 * (alpha**2) if alpha != 0 else math.nextafter(0, 1)
@@ -228,16 +274,22 @@ class Binarizer:
 
     def bfrangi(self, tau: float, scales: List[float], threshold: Optional[str] = None) -> np.ndarray:
         """
-        Beyond Frangi filter for 3D tubular enhancement.
+        Beyond Frangi vesselness filter (Jerman et al.).
 
         The regularization uses tau * max(|lambda3|) at each scale, taken before the sign is
         flipped for the background. Jerman's vesselness3D.m flips the sign first and uses the
-        signed maximum, max(lambda3), so results can differ between the two.
+        signed maximum, max(lambda3), so results can differ between the two. Voxels outside
+        the Yang and Cheng mask get 0.
 
         Args:
-            tau: Beyond Frangi parameter (regularization).
-            scales: List of scales for scale space.
-            threshold: None to filter, 'otsu2d' or 'otsu3d' to binarize the volume.
+            tau: Regularization, as a fraction of max(|lambda3|) at each scale.
+            scales: Gaussian sigmas in voxels. The response is the maximum over the scales.
+            threshold: None (default) returns the vesselness. 'otsu2d' or 'otsu3d' thresholds
+                it with Otsu, treating the vesselness as bright on black for either background.
+
+        Returns:
+            float64 vesselness in [0, 1], or a uint8 array of 0 and 1 when threshold is set.
+                Same shape as the volume.
         """
         logger.info("Running Beyond Frangi filter on %d scales.", len(scales))
         all_filters = []
@@ -285,7 +337,13 @@ class Binarizer:
         return output
 
 def parse_args() -> argparse.Namespace:
-    parent = argparse.ArgumentParser(add_help=False, description='3D Volume Filtering and Binarization')
+    """
+    Parse the arguments of the binarize command from sys.argv.
+
+    Returns:
+        The parsed arguments. method holds the subcommand name.
+    """
+    parent =argparse.ArgumentParser(add_help=False, description='3D Volume Filtering and Binarization')
     parent.add_argument("--input", required=True, type=Path, help="Path to input .npy volume")
     parent.add_argument("--output", required=True, type=Path, help="Path for output .npy mask or binarization.")
     parent.add_argument("--background", choices=["black", "white"], default="black")
@@ -312,21 +370,14 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
-def main():
+def main() -> None:
     """
-    binarize
+    Run the binarize command: load the input .npy volume, apply the method, save the result.
 
-    A command-line tool and Python module for binarizing 3D volumes using:
-      - Otsu’s thresholding (2D slices or full 3D)
-      - Frangi vesselness filter
-      - Beyond-Frangi filter
+    Subcommands are otsu2d, otsu3d, frangi and bfrangi. For example:
 
-    Usage (CLI):
-        binarize frangi --input in.npy --output out.npy --background white \
-        --alpha 1 --beta 0.5 --c 3 --scale 1 2 3 4 5
-        or
         binarize otsu3d --input in.npy --output out.npy --background white
-
+        binarize frangi --input in.npy --output out.npy --alpha 1 --beta 0.5 --c 3 --scale 1 2 3
     """
     logging.basicConfig(
         level=logging.INFO,

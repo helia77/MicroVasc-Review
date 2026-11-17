@@ -74,7 +74,8 @@ vesselness = binarizer.frangi(alpha=0.5, beta=0.5, c=3, scales=[1, 2, 3])
 mask = binarizer.bfrangi(tau=0.75, scales=[1, 2, 3], threshold="otsu3d")
 ```
 
-The parameters can be tuned with the scripts described in [Parameter optimization](optimization.md).
+All arguments and return values are listed in the [API reference](api/binarize.md). The
+parameters can be tuned with the scripts described in [Parameter optimization](optimization.md).
 
 ## External binarization methods
 
