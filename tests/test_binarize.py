@@ -145,6 +145,14 @@ def test_black_on_v_equals_white_on_minus_v(filtered):
     np.testing.assert_array_equal(run_filter(Binarizer(-v, "white"), method), out)
 
 
+@pytest.mark.parametrize("threshold", ["bogus", "otsu", "OTSU3D", ""])
+@pytest.mark.parametrize("method", ["frangi", "bfrangi"])
+def test_unknown_threshold_raises(method, threshold):
+    binzr = Binarizer(synthetic.tube().astype(float))
+    with pytest.raises(ValueError, match=r"threshold must be None, 'otsu2d' or 'otsu3d', got"):
+        run_filter(binzr, method, threshold)
+
+
 @pytest.mark.parametrize("background", ["black", "white"])
 @pytest.mark.parametrize("name", list(MASKS))
 def test_frangi_unchanged_by_skip_mask(name, background):

@@ -116,6 +116,10 @@ class Binarizer:
         """
         return self._otsu2d(self.volume, self.background)
 
+    def _check_threshold(self, threshold: Optional[str]) -> None:
+        if threshold not in (None, 'otsu2d', 'otsu3d'):
+            raise ValueError(f"threshold must be None, 'otsu2d' or 'otsu3d', got {threshold!r}")
+
     def _threshold_vesselness(self, vesselness: np.ndarray, threshold: Optional[str]) -> Optional[np.ndarray]:
         """
         Binarize a vesselness map with Otsu. Vesselness is bright on black, whatever the input background.
@@ -220,7 +224,11 @@ class Binarizer:
         Returns:
             float64 vesselness in [0, 1], or a uint8 array of 0 and 1 when threshold is set.
                 Same shape as the volume.
+
+        Raises:
+            ValueError: If threshold is not None, 'otsu2d' or 'otsu3d'.
         """
+        self._check_threshold(threshold)
         logger.info("Running Frangi filter on %d scales.", len(scales))
         all_filters = []
         alpha2 = 2 * (alpha**2) if alpha != 0 else math.nextafter(0, 1)
@@ -290,7 +298,11 @@ class Binarizer:
         Returns:
             float64 vesselness in [0, 1], or a uint8 array of 0 and 1 when threshold is set.
                 Same shape as the volume.
+
+        Raises:
+            ValueError: If threshold is not None, 'otsu2d' or 'otsu3d'.
         """
+        self._check_threshold(threshold)
         logger.info("Running Beyond Frangi filter on %d scales.", len(scales))
         all_filters = []
         X, Y, Z = self.volume.shape

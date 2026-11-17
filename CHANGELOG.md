@@ -10,6 +10,12 @@ All notable changes to this project are documented in this file. The format foll
 - Documentation site at https://www.helia-gohar.com/MicroVasc-Review/, built with MkDocs and
   deployed from `main` by GitHub Actions.
 
+### Fixed
+
+- `Binarizer.frangi` and `Binarizer.bfrangi` raise `ValueError` for a `threshold` other than
+  `None`, `'otsu2d'` or `'otsu3d'`. Before, an unknown value was ignored and the vesselness was
+  returned.
+
 ## [0.2.0] - 2026-11-03
 
 ### Added
