@@ -37,6 +37,7 @@ sigma = 1 um.
 
 `netmets(ground_truth, test)` returns (P, R). The ground truth comes first, as in
 `SegmentationMetrics(ground_truth, prediction)`.
+All functions are listed in the [API reference](api/metrics_network.md).
 
 The integral uses the midpoint rule with steps of at most sigma / 10, and d is the exact distance
 to the nearest segment of B. The NetMets software measures d between sample points, so values may

@@ -19,9 +19,14 @@ slightly from it.
 Coordinates and sigma must use the same unit (um in the paper, which uses sigma = 1 um).
 """
 import itertools
+from typing import TYPE_CHECKING, Tuple, Union
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.spatial import cKDTree
+
+if TYPE_CHECKING:
+    from microvasc.data import NWT
 
 # the 13 neighbor offsets of a 26-neighborhood that point "forward", so each pair is found once
 _FORWARD_26 = np.array([(i, j, k) for i in (-1, 0, 1) for j in (-1, 0, 1) for k in (-1, 0, 1)
@@ -29,15 +34,27 @@ _FORWARD_26 = np.array([(i, j, k) for i in (-1, 0, 1) for j in (-1, 0, 1) for k 
 _CHUNK = 65536
 
 
-def as_segments(network, scale=1.0) -> np.ndarray:
+def as_segments(network: Union["NWT", ArrayLike], scale: ArrayLike = 1.0) -> np.ndarray:
     """
     Line segments of a network as a float array of shape (N, 2, 3).
 
     Args:
-        network: a microvasc.data.NWT object (loaded from .nwt or .obj), or an array-like of
+        network: A `microvasc.data.NWT` object (loaded from .nwt or .obj), or an array-like of
             segments with shape (N, 2, 3).
-        scale: factor applied to the coordinates (for example the voxel size in um), a number
+        scale: Factor applied to the coordinates (for example the voxel size in um), a number
             or one value per axis.
+
+    Returns:
+        Float array of shape (N, 2, 3), the coordinates times `scale`. An empty input gives
+            shape (0, 2, 3).
+
+    Raises:
+        ValueError: If the segments do not have shape (N, 2, 3).
+
+    Examples:
+        >>> from microvasc.metrics.network import as_segments
+        >>> as_segments([[[0, 0, 0], [1, 2, 3]]], scale=[1, 1, 2]).tolist()
+        [[[0.0, 0.0, 0.0], [1.0, 2.0, 6.0]]]
     """
     if hasattr(network, "line_segments"):
         network = [(s.p[0], s.p[1]) for s in network.line_segments()]
@@ -49,7 +66,7 @@ def as_segments(network, scale=1.0) -> np.ndarray:
     return segments * np.broadcast_to(np.asarray(scale, dtype=float), (3,))
 
 
-def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size=1.0) -> np.ndarray:
+def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size: ArrayLike = 1.0) -> np.ndarray:
     """
     Turn a voxel skeleton into line segments by joining every pair of 26-adjacent voxels.
 
@@ -62,11 +79,23 @@ def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size=1.0) -> np.ndarray:
     converted, so values from this conversion are not expected to equal the published ones.
 
     Args:
-        mask: 3D skeleton; any nonzero voxel is part of it.
-        voxel_size: voxel spacing in um, a number or one value per axis.
+        mask: 3D skeleton. Any nonzero voxel is part of it.
+        voxel_size: Voxel spacing (for example in um), a number or one value per axis.
 
     Returns:
-        float array of shape (N, 2, 3), in um.
+        Float array of shape (N, 2, 3): array indices times `voxel_size`. An empty mask gives
+            shape (0, 2, 3).
+
+    Raises:
+        ValueError: If `mask` is not 3D.
+
+    Examples:
+        >>> import numpy as np
+        >>> from microvasc.metrics.network import voxel_skeleton_to_segments
+        >>> mask = np.zeros((1, 1, 3), dtype=np.uint8)
+        >>> mask[0, 0, :] = 1
+        >>> voxel_skeleton_to_segments(mask, voxel_size=2.0).tolist()
+        [[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0]], [[0.0, 0.0, 2.0], [0.0, 0.0, 4.0]]]
     """
     mask = np.asarray(mask) != 0
     if mask.ndim != 3:
@@ -130,19 +159,35 @@ def _distance_to_segments(points, segments, max_piece):
     return out
 
 
-def netmets_similarity(a, b, sigma: float = 1.0, scale_a=1.0, scale_b=1.0) -> float:
+def netmets_similarity(a: Union["NWT", ArrayLike], b: Union["NWT", ArrayLike],
+                       sigma: float = 1.0, scale_a: ArrayLike = 1.0,
+                       scale_b: ArrayLike = 1.0) -> float:
     """
     NetMets similarity M(a, b): the length-weighted fraction of a that lies close to b.
 
     Args:
-        a, b: networks, as accepted by `as_segments`.
-        sigma: sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
-        scale_a, scale_b: factors that convert the coordinates of a and b to that unit
-            (for example the voxel size in um), a number or one value per axis.
+        a: Network to measure, as accepted by `as_segments`.
+        b: Network it is compared with, as accepted by `as_segments`.
+        sigma: Sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
+        scale_a: Factor that converts the coordinates of a to the unit of sigma (for example
+            the voxel size in um), a number or one value per axis.
+        scale_b: The same for b.
 
     Returns:
-        A value in [0, 1]. When a has no length, returns 1.0 if b has no length either,
-        and 0.0 otherwise.
+        A value in [0, 1]. When a has no length, 1.0 if b has no length either, and 0.0
+            otherwise.
+
+    Raises:
+        ValueError: If sigma is not positive, or a network does not have shape (N, 2, 3).
+
+    Examples:
+        A line compared with a copy moved by sigma gives exp(-1/2):
+
+        >>> from microvasc.metrics.network import netmets_similarity
+        >>> a = [[[0, 0, 0], [10, 0, 0]]]
+        >>> b = [[[0, 1, 0], [10, 1, 0]]]
+        >>> round(netmets_similarity(a, b, sigma=1.0), 4)
+        0.6065
     """
     if not sigma > 0:
         raise ValueError("sigma must be positive")
@@ -169,7 +214,9 @@ def netmets_similarity(a, b, sigma: float = 1.0, scale_a=1.0, scale_b=1.0) -> fl
     return float(np.sum(dt * np.exp(-d**2 / (2 * sigma**2))) / total)
 
 
-def netmets(ground_truth, test, sigma: float = 1.0, truth_scale=1.0, test_scale=1.0):
+def netmets(ground_truth: Union["NWT", ArrayLike], test: Union["NWT", ArrayLike],
+            sigma: float = 1.0, truth_scale: ArrayLike = 1.0,
+            test_scale: ArrayLike = 1.0) -> Tuple[float, float]:
     """
     NetMets precision and recall of a test skeleton against a ground truth.
 
@@ -179,13 +226,30 @@ def netmets(ground_truth, test, sigma: float = 1.0, truth_scale=1.0, test_scale=
     Voxel skeletons must first go through `voxel_skeleton_to_segments`.
 
     Args:
-        ground_truth, test: networks, as accepted by `as_segments`, with the same axis order.
-        sigma: sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
-        truth_scale, test_scale: factors that convert each input's coordinates to the unit of
-            sigma (for example its voxel size in um), a number or one value per axis.
+        ground_truth: Ground truth network, as accepted by `as_segments`.
+        test: Test network, as accepted by `as_segments`, with the same axis order as the
+            ground truth.
+        sigma: Sensitivity, in the unit of the scaled coordinates (the paper uses 1 um).
+        truth_scale: Factor that converts the ground truth coordinates to the unit of sigma
+            (for example its voxel size in um), a number or one value per axis.
+        test_scale: The same for the test network.
 
     Returns:
-        (P, R)
+        Precision and recall (P, R), each in [0, 1].
+
+    Raises:
+        ValueError: If sigma is not positive, or a network does not have shape (N, 2, 3).
+
+    Examples:
+        A test skeleton that finds the whole ground truth line and adds a false line far
+        from it:
+
+        >>> from microvasc.metrics.network import netmets
+        >>> truth = [[[0, 0, 0], [10, 0, 0]]]
+        >>> test = truth + [[[0, 50, 0], [10, 50, 0]]]
+        >>> P, R = netmets(truth, test)
+        >>> round(P, 4), round(R, 4)
+        (0.5, 1.0)
     """
     return (netmets_similarity(test, ground_truth, sigma, test_scale, truth_scale),
             netmets_similarity(ground_truth, test, sigma, truth_scale, test_scale))
