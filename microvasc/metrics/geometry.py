@@ -23,6 +23,9 @@ class SegmentationMetrics:
         fn: False negatives.
         both_empty: True if neither mask has a foreground voxel.
 
+    Raises:
+        ValueError: If the two masks have different shapes.
+
     Examples:
         >>> import numpy as np
         >>> from microvasc.metrics.geometry import SegmentationMetrics
@@ -34,6 +37,9 @@ class SegmentationMetrics:
     """
 
     def __init__(self, ground_truth: np.ndarray, predicted: np.ndarray) -> None:
+        if np.shape(ground_truth) != np.shape(predicted):
+            raise ValueError(f"ground_truth and predicted must have the same shape, "
+                             f"got {np.shape(ground_truth)} and {np.shape(predicted)}")
         self.vol_true = ground_truth
         self.vol_pred = predicted
         self.positives = np.count_nonzero(ground_truth)

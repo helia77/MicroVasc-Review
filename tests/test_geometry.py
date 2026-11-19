@@ -1,3 +1,4 @@
+import re
 import warnings
 
 import numpy as np
@@ -37,6 +38,18 @@ def test_hand_computed_values(m):
 def test_nonzero_values_count_as_foreground():
     m = SegmentationMetrics(TRUE.astype(np.uint8) * 255, PRED.astype(np.uint8))
     assert (m.tp, m.fp, m.fn, m.tn) == (2, 1, 3, 6)
+
+
+@pytest.mark.parametrize("true_shape,pred_shape", [
+    ((4, 1), (4, 4)),     # broadcasts, so it ran before without an error
+    ((4, 4), (4, 1)),
+    ((3, 4), (4, 3)),
+    ((12,), (3, 4)),
+])
+def test_different_shapes_raise(true_shape, pred_shape):
+    message = f"same shape, got {true_shape} and {pred_shape}"
+    with pytest.raises(ValueError, match=re.escape(message)):
+        SegmentationMetrics(np.ones(true_shape), np.ones(pred_shape))
 
 
 @pytest.mark.parametrize("seed", range(5))

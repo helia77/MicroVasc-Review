@@ -15,6 +15,9 @@ All notable changes to this project are documented in this file. The format foll
 - `Binarizer.frangi` and `Binarizer.bfrangi` raise `ValueError` for a `threshold` other than
   `None`, `'otsu2d'` or `'otsu3d'`. Before, an unknown value was ignored and the vesselness was
   returned.
+- `SegmentationMetrics` raises `ValueError` when the ground truth and the prediction have
+  different shapes. Before, shapes that broadcast were accepted and could give wrong values, such
+  as an accuracy above 1.
 
 ## [0.2.0] - 2026-11-03
 
