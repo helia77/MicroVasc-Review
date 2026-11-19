@@ -36,6 +36,7 @@ nav:
   - API reference:
       - binarize: api/binarize.md
       - skeleton: api/skeleton.md
+      - metrics.geometry: api/metrics_geometry.md
 
 plugins:
   - search

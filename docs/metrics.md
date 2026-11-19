@@ -20,6 +20,7 @@ m.jaccard(), m.dice(), m.precision(), m.recall()
 
 When both masks are empty, Jaccard, Dice, precision and recall return 1.0. Any other zero
 denominator gives 0.0. The F-score and the Jaccard index are related by J = F / (2 - F).
+All methods are listed in the [API reference](api/metrics_geometry.md).
 
 ## Skeletons: NetMets, `microvasc/metrics/network.py`
 
