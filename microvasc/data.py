@@ -358,30 +358,39 @@ def sdp2obj(input_file: Union[str, os.PathLike]) -> str:
     return obj_file
 
 
-def cg2obj(input_file: str) -> None:
+def cg2obj(input_file: Union[str, os.PathLike]) -> None:
     """
     Convert a CG file from StarLab (Tagliasacchi method) to an OBJ file.
 
-    Every character 'e' in the file is replaced with 'l', and the output path is `input_file`
-    with '.cg' replaced by '.obj'.
+    The CG writer of starlab-mcfskel emits a `# D:3 NV:<n> NE:<m>` header, `v <x> <y> <z>`
+    vertex lines and `e <i> <j>` edge lines with 1-based indices, as in OBJ. Each edge line
+    becomes an OBJ line `l <i> <j>`: only the leading 'e' is replaced. All other lines, numbers
+    such as 1e-05 and line endings are copied unchanged.
+
+    The output is written next to the input, with the .cg suffix replaced by .obj. An existing
+    file of that name is overwritten. The input file is never changed.
 
     Args:
-        input_file: Path of the CG file, as a string.
+        input_file: Path of the CG file. Its suffix must be .cg, in any letter case.
 
     Raises:
+        ValueError: If the suffix is not .cg.
         FileNotFoundError: If the CG file does not exist.
         OSError: If the file cannot be read or written.
     """
+    root, suffix = os.path.splitext(os.fspath(input_file))
+    if suffix.lower() != '.cg':
+        raise ValueError(f"expected a .cg file, got {os.fspath(input_file)!r}")
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"CG file not found: {input_file}")
-        
-    with open(input_file, 'r') as infile: 
+
+    # newline='' keeps the line endings of the input
+    with open(input_file, 'r', newline='') as infile:
         content = infile.read()
-        
-    modified = content.replace('e', 'l')
-    output_file = input_file.replace('.cg', '.obj')
-    
-    with open(output_file, 'w') as outfile:
+
+    # an edge line starts with 'e' and a space or tab
+    modified = re.sub(r'^e(?=[ \t])', 'l', content, flags=re.MULTILINE)
+    with open(root + '.obj', 'w', newline='') as outfile:
         outfile.write(modified)
         
 

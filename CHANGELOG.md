@@ -43,6 +43,12 @@ All notable changes to this project are documented in this file. The format foll
   slices of only 0 and 1 keep those slices as 0 and 1, and float volumes in [0, 1] are no longer
   saved as zeros. Values above 255, negative values and NaN now raise `ValueError` instead of
   being wrapped.
+- `cg2obj` replaced every 'e' in the file with 'l', so numbers such as `1e-05` became `1l-05`.
+  It now replaces only the leading 'e' of edge lines and copies everything else unchanged. The
+  output is the input path with its `.cg` suffix (any letter case) replaced by `.obj`, and a name
+  without a `.cg` suffix raises `ValueError`. Before, such a name made `cg2obj` overwrite its
+  input file, and a `.cg` elsewhere in the path, as in `x.cgdir/a.cg`, changed the output folder.
+  `cg2obj` also accepts a `Path`.
 
 ## [0.2.0] - 2026-11-03
 
