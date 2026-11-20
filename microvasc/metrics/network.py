@@ -32,6 +32,9 @@ if TYPE_CHECKING:
 _FORWARD_26 = np.array([(i, j, k) for i in (-1, 0, 1) for j in (-1, 0, 1) for k in (-1, 0, 1)
                         if (i, j, k) > (0, 0, 0)])
 _CHUNK = 65536
+# exp(-d^2 / (2 sigma^2)) is exactly 0.0 in float64 for d > 38.61 sigma, so the distance search
+# can stop at 40 sigma without changing any result
+_CUTOFF = 40.0
 
 
 def as_segments(network: Union["NWT", ArrayLike], scale: ArrayLike = 1.0) -> np.ndarray:
@@ -131,8 +134,13 @@ def _point_segment_distance(x, p0, p1):
     return np.linalg.norm(x - (p0 + t[:, None] * d), axis=1)
 
 
-def _distance_to_segments(points, segments, max_piece):
-    """Exact distance from each point to the closest of the segments."""
+def _distance_to_segments(points, segments, max_piece, max_distance=np.inf):
+    """
+    Distance from each point to the closest of the segments.
+
+    Distances up to `max_distance` are exact. A point farther than `max_distance` from all
+    segments gets a value of at least its distance, so also above `max_distance`.
+    """
     # split long segments, so a point's nearest segment is among those with a nearby midpoint
     lengths = np.linalg.norm(segments[:, 1] - segments[:, 0], axis=1)
     n = np.maximum(np.ceil(lengths / max_piece).astype(np.int64), 1)
@@ -149,8 +157,9 @@ def _distance_to_segments(points, segments, max_piece):
         x = points[start:start + _CHUNK]
         _, nearest = tree.query(x)
         best = _point_segment_distance(x, p0[nearest], p1[nearest])
-        # any piece closer than `best` has its midpoint within best + half of x
-        found = tree.query_ball_point(x, best + half.max())
+        # any piece closer than `best` has its midpoint within best + half of x. Pieces
+        # farther than max_distance are not needed, which keeps far-apart networks cheap.
+        found = tree.query_ball_point(x, np.minimum(best, max_distance) + half.max())
         counts = np.fromiter(map(len, found), dtype=np.int64, count=len(found))
         cand = np.fromiter(itertools.chain.from_iterable(found), dtype=np.int64, count=counts.sum())
         owner = np.repeat(np.arange(len(x)), counts)
@@ -210,7 +219,7 @@ def netmets_similarity(a: Union["NWT", ArrayLike], b: Union["NWT", ArrayLike],
     points = a[seg, 0] + (a[seg, 1] - a[seg, 0]) * t[:, None]
     dt = (lengths / n)[seg]
 
-    d = _distance_to_segments(points, b, max_piece=sigma)
+    d = _distance_to_segments(points, b, max_piece=sigma, max_distance=_CUTOFF * sigma)
     return float(np.sum(dt * np.exp(-d**2 / (2 * sigma**2))) / total)
 
 

@@ -14,6 +14,7 @@ import synthetic
 from capture_netmets_golden import (DATA, SKELETONS, VOXEL_SIZES, case_key, netmets_case,
                                     reader_outputs)
 from microvasc.data import NWT
+from microvasc.metrics import network
 from microvasc.metrics.network import (as_segments, netmets, netmets_similarity,
                                        voxel_skeleton_to_segments)
 
@@ -100,6 +101,20 @@ def test_long_segments_split_into_short_ones_give_the_same_result():
     pieces = np.stack([p0 + (p1 - p0) * t[:-1], p0 + (p1 - p0) * t[1:]], axis=1)
     A = POLYLINE + [0, 0.7, 0.3]
     assert netmets_similarity(A, pieces) == pytest.approx(netmets_similarity(A, POLYLINE[1:2]), rel=1e-12)
+
+
+@pytest.mark.parametrize("sigma", [0.5, 1.0, 2.0])
+def test_search_cutoff_does_not_change_results(monkeypatch, sigma):
+    # copies of A at 10 to 60 sigma: the distance search stops at 40 sigma, where the weight
+    # is already exactly 0, so the values must be identical to a search without the cutoff
+    rng = np.random.default_rng(0)
+    A = rng.uniform(0, 20 * sigma, (30, 2, 3))
+    B = np.concatenate([A + rng.normal(0, sigma, A.shape)] +
+                       [A + [0, 0, k * sigma] for k in (10, 39, 41, 60)])
+    pairs = [(A, B), (B, A), (A, B[30:]), (B[60:], A)]
+    capped = [netmets_similarity(x, y, sigma) for x, y in pairs]
+    monkeypatch.setattr(network, "_CUTOFF", np.inf)
+    assert capped == [netmets_similarity(x, y, sigma) for x, y in pairs]
 
 
 def test_empty_networks():

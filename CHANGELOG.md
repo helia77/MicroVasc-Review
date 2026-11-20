@@ -18,6 +18,9 @@ All notable changes to this project are documented in this file. The format foll
 - `SegmentationMetrics` raises `ValueError` when the ground truth and the prediction have
   different shapes. Before, shapes that broadcast were accepted and could give wrong values, such
   as an accuracy above 1.
+- `netmets` and `netmets_similarity` used a lot of memory when parts of the two networks were far
+  apart, for example with a wrong scale. The distance search now stops at 40 sigma, where the
+  weight is already exactly 0, so the results are unchanged.
 
 ## [0.2.0] - 2026-11-03
 
