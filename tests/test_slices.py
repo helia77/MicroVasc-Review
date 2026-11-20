@@ -152,3 +152,58 @@ def test_folder_path_that_is_a_file_raises(cv2, tmp_path):
     with pytest.raises(FileExistsError):
         save_slices(volume(2), tmp_path / "out", overwrite=True)
     assert (tmp_path / "out").read_text() == "a file"
+
+
+# values: one rule for the whole volume
+
+def save_and_load(volume, folder):
+    save_slices(volume, folder)
+    return load_images(folder, stack=True, grayscale=True)
+
+
+def test_0_to_11_volume_is_saved_unchanged(cv2, tmp_path):
+    # before, the slice of 1s came back as 255 and the slice of 2s stayed 2
+    v = np.broadcast_to(np.arange(12, dtype=np.uint8)[:, None, None], (12, 4, 5)).copy()
+    np.testing.assert_array_equal(save_and_load(v, tmp_path / "out"), v)
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.int64, bool, np.float64])
+def test_mask_is_saved_as_0_255(cv2, tmp_path, dtype):
+    mask = np.random.default_rng(1).random((6, 5, 7)) < 0.4
+    mask[3] = False                                             # an empty slice
+    expected = mask.astype(np.uint8) * 255
+    np.testing.assert_array_equal(save_and_load(mask.astype(dtype), tmp_path / "out"), expected)
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.int32, np.float32])
+def test_0_255_volume_with_dark_slices_is_saved_unchanged(cv2, tmp_path, dtype):
+    v = volume(8)                                               # 0..255, 200 in every slice
+    v[2] = np.random.default_rng(2).integers(0, 2, v[2].shape)  # a slice of only 0 and 1
+    v[5] = 0                                                    # a slice of zeros
+    v[6] = 1                                                    # a slice of ones
+    np.testing.assert_array_equal(save_and_load(v.astype(dtype), tmp_path / "out"), v)
+
+
+def test_values_in_0_1_are_multiplied_by_255(cv2, tmp_path):
+    # a vesselness volume; before, every slice whose maximum was below 1 was saved as zeros
+    v = np.random.default_rng(3).random((5, 4, 6)) * 0.7
+    v[4] = 0
+    np.testing.assert_array_equal(save_and_load(v, tmp_path / "out"), np.rint(v * 255).astype(np.uint8))
+
+
+def test_all_zero_volume_is_saved_as_zeros(cv2, tmp_path):
+    v = np.zeros((3, 4, 5), np.uint8)
+    np.testing.assert_array_equal(save_and_load(v, tmp_path / "out"), v)
+
+
+@pytest.mark.parametrize("v,message", [
+    (np.array([300, 2], np.uint16), "values from 2 to 300"),
+    (np.array([-1, 5], np.int64), "values from -1 to 5"),
+    (np.array([0.5, 1.5]), "values from 0.5 to 1.5 that are not all integers"),
+    (np.array([0.0, np.nan]), "NaN or inf"),
+    (np.array([0.0, np.inf]), "NaN or inf"),
+])
+def test_other_values_raise_and_write_nothing(cv2, tmp_path, v, message):
+    with pytest.raises(ValueError, match=re.escape(message)):
+        save_slices(np.broadcast_to(v[None, None, :], (3, 2, 2)), tmp_path / "out")
+    assert not (tmp_path / "out").exists()

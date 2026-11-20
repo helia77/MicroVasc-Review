@@ -35,6 +35,14 @@ All notable changes to this project are documented in this file. The format foll
   `FileExistsError`. With the new `overwrite=True`, only earlier slice files of the same format
   (`img_<number>.<file_format>`) are removed, and all other files are kept. A missing folder is
   still created.
+- `save_slices` converts the values with one rule for the whole volume. Before, each slice was
+  converted on its own: a slice whose maximum was 1 was multiplied by 255 and the others were
+  not, so in a 0..11 volume the slice of 1s was saved as 255 and the slice of 2s as 2. Now values
+  in [0, 1] are multiplied by 255 and rounded (a 0/1 mask is still saved as 0/255), and integers
+  in 0..255 are saved unchanged. The saved values can differ from before: 0..255 volumes with
+  slices of only 0 and 1 keep those slices as 0 and 1, and float volumes in [0, 1] are no longer
+  saved as zeros. Values above 255, negative values and NaN now raise `ValueError` instead of
+  being wrapped.
 
 ## [0.2.0] - 2026-11-03
 

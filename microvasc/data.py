@@ -71,6 +71,29 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
         return images
 
 
+def _volume_to_uint8(volume: np.ndarray) -> np.ndarray:
+    """The volume as uint8, with the one rule for the whole volume described in `save_slices`."""
+    v = np.asarray(volume)
+    if v.dtype == bool:
+        return v.astype(np.uint8) * 255
+    if not (np.issubdtype(v.dtype, np.integer) or np.issubdtype(v.dtype, np.floating)):
+        raise ValueError(f"save_slices needs an integer, float or bool volume, got dtype {v.dtype}")
+    if v.size == 0:
+        return v.astype(np.uint8)
+    if not np.all(np.isfinite(v)):
+        raise ValueError("save_slices writes values 0..255, and the volume holds NaN or inf. "
+                         "Convert it to 0..255 first.")
+    low, high = v.min(), v.max()
+    if low >= 0 and high <= 1:                                      # rule 1
+        return np.rint(v * 255.0).astype(np.uint8)
+    integers = np.issubdtype(v.dtype, np.integer) or bool(np.all(v == np.rint(v)))
+    if low >= 0 and high <= 255 and integers:                       # rule 2
+        return v.astype(np.uint8)
+    raise ValueError(f"save_slices writes values 0..255, and the volume holds values from {low} to "
+                     f"{high}{'' if integers else ' that are not all integers'}. Convert it to "
+                     f"0..255 first.")
+
+
 def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_slices: Union[str, int] = 'all',
                 file_format: str = 'bmp', overwrite: bool = False) -> None:
     """
@@ -84,8 +107,17 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
     (subfolders do not count). A folder that holds files is used only with `overwrite=True`.
     No file other than an earlier slice file is ever deleted.
 
-    Each slice is converted to uint8 on its own: a slice whose maximum is 1 is multiplied by
-    255, any other slice is cast to uint8 unchanged.
+    The values are converted to uint8 with one rule for the whole volume, decided from all of
+    its slices, so a slice is written the same way whether 5 or all slices are saved:
+
+    1. All values in [0, 1], including bool and an all-zero volume: multiplied by 255 and
+       rounded. A 0/1 mask is saved as 0/255, a vesselness volume in [0, 1] as 0..255.
+    2. Otherwise, all values are integers in 0..255, in any dtype: saved unchanged.
+    3. Anything else, such as values above 255, negative values, NaN or inf, or non-integer
+       values above 1: `ValueError`. Convert the volume to 0..255 first.
+
+    A 0..255 volume that holds only the values 0 and 1 falls under rule 1 and is saved as
+    0/255.
 
     Args:
         volume: 3D volume.
@@ -97,10 +129,12 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
             are kept.
 
     Raises:
+        ValueError: If the values fit neither rule 1 nor rule 2. Nothing is written.
         FileExistsError: If `folder_path` holds files and `overwrite` is False, or if
             `folder_path` is a file.
     """
     import cv2
+    volume = _volume_to_uint8(volume)
     folder = os.fspath(folder_path)
     os.makedirs(folder, exist_ok=True)
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
@@ -120,14 +154,8 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
         
     width = len(str(max(num_slices - 1, 0)))
     for i in range(num_slices):
-        img = volume[i]
-        if np.max(img) == 1:
-            img = (img * 255).astype(np.uint8)
-        else:
-            img = img.astype(np.uint8)
-
         filename = os.path.join(folder_path, f'img_{i:0{width}d}.{file_format}')
-        cv2.imwrite(filename, img)
+        cv2.imwrite(filename, volume[i])
 
 
 def nrrd2npy(nrrd_path: Union[str, os.PathLike]) -> np.ndarray:
