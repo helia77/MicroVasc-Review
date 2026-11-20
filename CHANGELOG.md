@@ -51,6 +51,8 @@ All notable changes to this project are documented in this file. The format foll
   `cg2obj` also accepts a `Path`.
 - `npy2obj` accepts the path of the `.npy` file as a `Path`, like `npy2off`. Before, only a
   string was read, and a `Path` raised `ValueError`.
+- `NWT` closes the `.nwt` or `.obj` file after reading it, also when the file cannot be parsed.
+  Before, `load_nwt` and `load_obj` never closed it, which gave a `ResourceWarning`.
 
 ## [0.2.0] - 2026-11-03
 

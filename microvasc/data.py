@@ -524,28 +524,28 @@ class NWT:
         Args:
             filename: Path of the .nwt file.
         """
-        fid = open(filename, "rb")                                      #open a binary file for reading
-        self.header = fid.read(14).decode("utf-8")                      #load the header
-        self.desc = fid.read(58).decode("utf-8")                        #load the description
-        nv = struct.unpack("I", fid.read(4))[0]                         #load the number of vertices and edges
-        ne = struct.unpack("I", fid.read(4))[0]
+        with open(filename, "rb") as fid:                                   #open a binary file for reading, closed on return or error
+            self.header = fid.read(14).decode("utf-8")                      #load the header
+            self.desc = fid.read(58).decode("utf-8")                        #load the description
+            nv = struct.unpack("I", fid.read(4))[0]                         #load the number of vertices and edges
+            ne = struct.unpack("I", fid.read(4))[0]
 
-        self.vertices = []                                              #create an empty list to store the vertices        
-        for _ in range(nv):                                             #iterate across all vertices
-            p = np.fromfile(fid, np.float32, 3)                         #read the vertex position
-            E = np.fromfile(fid, np.uint32, 2)                          #read the number of edges
-            e_out = np.fromfile(fid, np.uint32, E[0])                   #read the indices of the outgoing edges
-            e_in = np.fromfile(fid, np.uint32, E[1])                    #read the indices of the incoming edges
-            self.vertices.append(Vertex(p[0], p[1], p[2], e_out, e_in)) #create a vertex
-            
-        self.edges = []                                                 #create an empty array to store the edges        
-        for _ in range(ne):                                             #iterate over all edges            
-            v = np.fromfile(fid, np.uint32, 2)                          #load the vertex indices that this edge connects            
-            npts = struct.unpack("I", fid.read(4))[0]                   #read the number of points defining this edge            
-            pv = np.fromfile(fid, np.float32, 4*npts)                   #read the array of points            
-            p = [tuple(pv[i:i+4]) for i in range(0, 4*npts, 4)]         #group the values into (x, y, z, radius) tuples
-            self.edges.append(Edge(v[0], v[1], p))                      #create and append the edge to the edge list
-    
+            self.vertices = []                                              #create an empty list to store the vertices
+            for _ in range(nv):                                             #iterate across all vertices
+                p = np.fromfile(fid, np.float32, 3)                         #read the vertex position
+                E = np.fromfile(fid, np.uint32, 2)                          #read the number of edges
+                e_out = np.fromfile(fid, np.uint32, E[0])                   #read the indices of the outgoing edges
+                e_in = np.fromfile(fid, np.uint32, E[1])                    #read the indices of the incoming edges
+                self.vertices.append(Vertex(p[0], p[1], p[2], e_out, e_in)) #create a vertex
+
+            self.edges = []                                                 #create an empty array to store the edges
+            for _ in range(ne):                                             #iterate over all edges
+                v = np.fromfile(fid, np.uint32, 2)                          #load the vertex indices that this edge connects
+                npts = struct.unpack("I", fid.read(4))[0]                   #read the number of points defining this edge
+                pv = np.fromfile(fid, np.float32, 4*npts)                   #read the array of points
+                p = [tuple(pv[i:i+4]) for i in range(0, 4*npts, 4)]         #group the values into (x, y, z, radius) tuples
+                self.edges.append(Edge(v[0], v[1], p))                      #create and append the edge to the edge list
+
     def load_obj(self, filename: Union[str, os.PathLike]) -> None:
         """
         Read an OBJ file into `header`, `desc`, `vertices` and `edges`.
@@ -557,17 +557,17 @@ class NWT:
         Args:
             filename: Path of the .obj file.
         """
-        fid = open(filename, "r")                                       #open the file for reading        
         vertices = []                                                   #create an array of vertices
         lines = []                                                      #create an array of lines
-        for line in fid:                                                #for each line in the file
-            elements = line.split(" ")                                  #split it into token elements          
-            if elements[-1] == '\n' and len(elements) != 1:             #make sure the last element is not \n
-                elements.pop(-1)
-            if elements[0] == "v":                                      #if the element is a vertex
-                vertices.append([float(i) for i in elements[1:]])       #add the coordinates to the vertex list            
-            if elements[0] == "l":                                      #if the element is a line            
-                lines.append([int(i) for i in elements[1:]])            #add this line to the line list
+        with open(filename, "r") as fid:                                #open the file for reading, closed on return or error
+            for line in fid:                                            #for each line in the file
+                elements = line.split(" ")                              #split it into token elements
+                if elements[-1] == '\n' and len(elements) != 1:         #make sure the last element is not \n
+                    elements.pop(-1)
+                if elements[0] == "v":                                  #if the element is a vertex
+                    vertices.append([float(i) for i in elements[1:]])   #add the coordinates to the vertex list
+                if elements[0] == "l":                                  #if the element is a line
+                    lines.append([int(i) for i in elements[1:]])        #add this line to the line list
 
         self.header = "nwtfileformat "                                  #assign a header and description
         self.desc = "File generated from OBJ"
