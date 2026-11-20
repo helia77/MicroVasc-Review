@@ -49,6 +49,8 @@ All notable changes to this project are documented in this file. The format foll
   without a `.cg` suffix raises `ValueError`. Before, such a name made `cg2obj` overwrite its
   input file, and a `.cg` elsewhere in the path, as in `x.cgdir/a.cg`, changed the output folder.
   `cg2obj` also accepts a `Path`.
+- `npy2obj` accepts the path of the `.npy` file as a `Path`, like `npy2off`. Before, only a
+  string was read, and a `Path` raised `ValueError`.
 
 ## [0.2.0] - 2026-11-03
 

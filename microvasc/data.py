@@ -242,21 +242,22 @@ def resample(data: np.ndarray, spacing: Sequence[float], output_spacing: Sequenc
 
     return sitk.GetArrayFromImage(resampled)
 
-def npy2obj(volume: Union[np.ndarray, str], output_name: Union[str, os.PathLike], level: float = 0.0) -> None:
+def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
+            level: float = 0.0) -> None:
     """
     Write the surface mesh of a volume, from marching cubes, as an OBJ file.
 
     Vertex coordinates are in voxels, in array axis order.
 
     Args:
-        volume: Volume, or path of a .npy file as a string.
+        volume: Volume, or path of a .npy file.
         output_name: Path of the output OBJ file.
         level: Level for marching cubes.
 
     Raises:
-        ValueError: If `volume` is not an array or a string.
+        ValueError: If `volume` is not an array or a path.
     """
-    if isinstance(volume, str):
+    if isinstance(volume, (str, os.PathLike)):
         volume = np.load(volume)
     elif not isinstance(volume, np.ndarray):
         raise ValueError("Input must be a numpy array or file path.")
