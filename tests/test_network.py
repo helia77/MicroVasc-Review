@@ -6,6 +6,7 @@ outputs equal those of the reader before the NWT point fix, for everything that 
 (the OBJ path and the NWT vertices); the NetMets values were captured right after NetMets was added.
 """
 import math
+import re
 
 import numpy as np
 import pytest
@@ -129,6 +130,60 @@ def test_bad_input():
         netmets(POLYLINE, POLYLINE, sigma=0)
     with pytest.raises(ValueError):
         as_segments(np.zeros((4, 3)))
+
+
+@pytest.mark.parametrize("sigma", [0, -1.0, math.nan, math.inf, -math.inf, [1.0, 2.0]])
+def test_sigma_must_be_finite_and_positive(sigma):
+    with pytest.raises(ValueError, match="sigma must be a finite number greater than 0"):
+        netmets(POLYLINE, POLYLINE, sigma=sigma)
+    with pytest.raises(ValueError, match="sigma must be a finite number greater than 0"):
+        netmets_similarity(POLYLINE, POLYLINE, sigma=sigma)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_coordinates_must_be_finite(value):
+    bad = POLYLINE.copy()
+    bad[1, 1, 2] = value
+    message = "coordinates must be finite, got NaN or inf in 1 of 3 segments, the first at index 1"
+    with pytest.raises(ValueError, match=re.escape(message)):
+        as_segments(bad)
+    with pytest.raises(ValueError, match=re.escape("ground_truth: " + message)):
+        netmets(bad, POLYLINE)
+    with pytest.raises(ValueError, match=re.escape("test: " + message)):
+        netmets(POLYLINE, bad)
+    with pytest.raises(ValueError, match=re.escape("b: " + message)):
+        netmets_similarity(POLYLINE, bad)
+
+
+@pytest.mark.parametrize("scale", [[1.0, 2.0], [1.0, 2.0, 3.0, 4.0], [[1.0, 2.0, 3.0]], []])
+def test_scale_must_be_one_value_or_one_per_axis(scale):
+    message = "must be one number or 3 values (one per axis)"
+    with pytest.raises(ValueError, match=re.escape("scale " + message)):
+        as_segments(POLYLINE, scale)
+    with pytest.raises(ValueError, match=re.escape("scale " + message)):
+        as_segments(np.zeros((0, 2, 3)), scale)
+    with pytest.raises(ValueError, match=re.escape("truth_scale " + message)):
+        netmets(POLYLINE, POLYLINE, truth_scale=scale)
+    with pytest.raises(ValueError, match=re.escape("test_scale " + message)):
+        netmets(POLYLINE, POLYLINE, test_scale=scale)
+    with pytest.raises(ValueError, match=re.escape("scale_b " + message)):
+        netmets_similarity(POLYLINE, POLYLINE, scale_b=scale)
+    with pytest.raises(ValueError, match=re.escape("voxel_size " + message)):
+        voxel_skeleton_to_segments(np.ones((2, 2, 2)), voxel_size=scale)
+
+
+@pytest.mark.parametrize("scale", [math.nan, math.inf, [1.0, math.nan, 1.0]])
+def test_scale_must_be_finite(scale):
+    with pytest.raises(ValueError, match="scale_a must be finite"):
+        netmets_similarity(POLYLINE, POLYLINE, scale_a=scale)
+    with pytest.raises(ValueError, match="voxel_size must be finite"):
+        voxel_skeleton_to_segments(np.ones((2, 2, 2)), voxel_size=scale)
+
+
+def test_accepted_scale_forms_give_the_same_result():
+    expected = as_segments(POLYLINE, (2.0, 2.0, 2.0))
+    for scale in (2, 2.0, [2.0], np.float32(2.0), np.array(2.0)):
+        np.testing.assert_array_equal(as_segments(POLYLINE, scale), expected)
 
 
 # voxel skeletons

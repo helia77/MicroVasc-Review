@@ -37,6 +37,31 @@ _CHUNK = 65536
 _CUTOFF = 40.0
 
 
+def _per_axis(value: ArrayLike, name: str) -> np.ndarray:
+    """`value` as 3 floats: one number for all axes, or one value per axis."""
+    v = np.asarray(value, dtype=float)
+    if v.ndim > 1 or v.size not in (1, 3):
+        raise ValueError(f"{name} must be one number or 3 values (one per axis), "
+                         f"got shape {v.shape}")
+    if not np.all(np.isfinite(v)):
+        raise ValueError(f"{name} must be finite, got {v.tolist()}")
+    return np.broadcast_to(v, (3,))
+
+
+def _check_sigma(sigma: float) -> None:
+    if np.ndim(sigma) != 0 or not np.isfinite(sigma) or not sigma > 0:
+        raise ValueError(f"sigma must be a finite number greater than 0, got {sigma!r}")
+
+
+def _named_segments(network, scale, name: str, scale_name: str) -> np.ndarray:
+    """`as_segments`, with the argument names in the error messages."""
+    _per_axis(scale, scale_name)
+    try:
+        return as_segments(network, scale)
+    except ValueError as error:
+        raise ValueError(f"{name}: {error}") from None
+
+
 def as_segments(network: Union["NWT", ArrayLike], scale: ArrayLike = 1.0) -> np.ndarray:
     """
     Line segments of a network as a float array of shape (N, 2, 3).
@@ -52,7 +77,8 @@ def as_segments(network: Union["NWT", ArrayLike], scale: ArrayLike = 1.0) -> np.
             shape (0, 2, 3).
 
     Raises:
-        ValueError: If the segments do not have shape (N, 2, 3).
+        ValueError: If the segments do not have shape (N, 2, 3), if a coordinate is NaN or
+            infinite, or if `scale` is not one finite number or 3 finite values.
 
     Examples:
         >>> from microvasc.metrics.network import as_segments
@@ -62,11 +88,16 @@ def as_segments(network: Union["NWT", ArrayLike], scale: ArrayLike = 1.0) -> np.
     if hasattr(network, "line_segments"):
         network = [(s.p[0], s.p[1]) for s in network.line_segments()]
     segments = np.asarray(network, dtype=float)
+    scale = _per_axis(scale, "scale")
     if segments.size == 0:
         return segments.reshape(0, 2, 3)
     if segments.ndim != 3 or segments.shape[1:] != (2, 3):
         raise ValueError(f"expected segments of shape (N, 2, 3), got {segments.shape}")
-    return segments * np.broadcast_to(np.asarray(scale, dtype=float), (3,))
+    bad = ~np.all(np.isfinite(segments), axis=(1, 2))
+    if bad.any():
+        raise ValueError(f"coordinates must be finite, got NaN or inf in {bad.sum()} of "
+                         f"{len(segments)} segments, the first at index {np.argmax(bad)}")
+    return segments * scale
 
 
 def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size: ArrayLike = 1.0) -> np.ndarray:
@@ -90,7 +121,8 @@ def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size: ArrayLike = 1.0) ->
             shape (0, 2, 3).
 
     Raises:
-        ValueError: If `mask` is not 3D.
+        ValueError: If `mask` is not 3D, or if `voxel_size` is not one finite number or 3
+            finite values.
 
     Examples:
         >>> import numpy as np
@@ -103,7 +135,7 @@ def voxel_skeleton_to_segments(mask: np.ndarray, voxel_size: ArrayLike = 1.0) ->
     mask = np.asarray(mask) != 0
     if mask.ndim != 3:
         raise ValueError(f"expected a 3D mask, got {mask.ndim} dimensions")
-    spacing = np.broadcast_to(np.asarray(voxel_size, dtype=float), (3,))
+    spacing = _per_axis(voxel_size, "voxel_size")
 
     coords = np.argwhere(mask)
     index = np.full(mask.shape, -1, dtype=np.int64)
@@ -187,7 +219,8 @@ def netmets_similarity(a: Union["NWT", ArrayLike], b: Union["NWT", ArrayLike],
             otherwise.
 
     Raises:
-        ValueError: If sigma is not positive, or a network does not have shape (N, 2, 3).
+        ValueError: If sigma is not a finite number greater than 0, or if a network or its
+            scale is rejected by `as_segments`.
 
     Examples:
         A line compared with a copy moved by sigma gives exp(-1/2):
@@ -198,9 +231,8 @@ def netmets_similarity(a: Union["NWT", ArrayLike], b: Union["NWT", ArrayLike],
         >>> round(netmets_similarity(a, b, sigma=1.0), 4)
         0.6065
     """
-    if not sigma > 0:
-        raise ValueError("sigma must be positive")
-    a, b = as_segments(a, scale_a), as_segments(b, scale_b)
+    _check_sigma(sigma)
+    a, b = _named_segments(a, scale_a, "a", "scale_a"), _named_segments(b, scale_b, "b", "scale_b")
     lengths = np.linalg.norm(a[:, 1] - a[:, 0], axis=1)
     total = lengths.sum()
     if total == 0:
@@ -247,7 +279,8 @@ def netmets(ground_truth: Union["NWT", ArrayLike], test: Union["NWT", ArrayLike]
         Precision and recall (P, R), each in [0, 1].
 
     Raises:
-        ValueError: If sigma is not positive, or a network does not have shape (N, 2, 3).
+        ValueError: If sigma is not a finite number greater than 0, or if a network or its
+            scale is rejected by `as_segments`.
 
     Examples:
         A test skeleton that finds the whole ground truth line and adds a false line far
@@ -260,5 +293,7 @@ def netmets(ground_truth: Union["NWT", ArrayLike], test: Union["NWT", ArrayLike]
         >>> round(P, 4), round(R, 4)
         (0.5, 1.0)
     """
-    return (netmets_similarity(test, ground_truth, sigma, test_scale, truth_scale),
-            netmets_similarity(ground_truth, test, sigma, truth_scale, test_scale))
+    _check_sigma(sigma)
+    truth = _named_segments(ground_truth, truth_scale, "ground_truth", "truth_scale")
+    test = _named_segments(test, test_scale, "test", "test_scale")
+    return netmets_similarity(test, truth, sigma), netmets_similarity(truth, test, sigma)

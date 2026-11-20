@@ -21,6 +21,11 @@ All notable changes to this project are documented in this file. The format foll
 - `netmets` and `netmets_similarity` used a lot of memory when parts of the two networks were far
   apart, for example with a wrong scale. The distance search now stops at 40 sigma, where the
   weight is already exactly 0, so the results are unchanged.
+- `netmets`, `netmets_similarity`, `as_segments` and `voxel_skeleton_to_segments` check their
+  inputs and raise `ValueError` with the name of the argument: sigma must be a finite number
+  greater than 0, coordinates must be finite, and a scale or voxel size must be one finite number
+  or 3 finite values. Before, `sigma=inf` returned 0.0, NaN coordinates gave NaN or a SciPy error,
+  and a scale of 2 values gave a NumPy broadcast error.
 
 ## [0.2.0] - 2026-11-03
 
