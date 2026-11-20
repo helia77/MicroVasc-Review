@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import struct
 import numpy as np
@@ -7,13 +8,22 @@ import skimage as ski
 from typing import List, Optional, Sequence, Tuple, Union
 
 
+def _natural_key(name: str) -> Tuple[list, str]:
+    """Sort key that compares the digit runs of a file name as numbers: img_2 before img_10."""
+    parts = re.split(r'(\d+)', name)
+    parts[1::2] = [int(p) for p in parts[1::2]]
+    return parts, name
+
+
 def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, int, Sequence[int]] = 'all',
                 stack: bool = False, grayscale: bool = False, crop_size: Tuple[int, int] = (0, 0),
                 crop_location: Tuple[int, int] = (0, 0)) -> Optional[Union[np.ndarray, List[np.ndarray]]]:
     """
     Load the .bmp, .jpg, .tif and .png images of a folder. Needs the `io` extra.
 
-    The files are taken in the order returned by `os.listdir`, which is not sorted.
+    The files are read in natural sort order of their names: digit runs compare as numbers,
+    so img_2 comes before img_10, and the zero-padded names of `save_slices` sort the same way.
+    Names with equal numbers, such as img_01 and img_1, are ordered as plain strings.
 
     Args:
         folder_path: Folder containing the images.
@@ -30,8 +40,9 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
             images. Images that OpenCV cannot read are skipped with a warning.
     """
     import cv2
-    images_list = [f for f in os.listdir(folder_path) if f.endswith('.bmp') or
-                   f.endswith('.jpg') or f.endswith('.tif') or f.endswith('.png')]
+    images_list = sorted((f for f in os.listdir(folder_path) if f.endswith('.bmp') or
+                          f.endswith('.jpg') or f.endswith('.tif') or f.endswith('.png')),
+                         key=_natural_key)
 
     if not images_list:
         log.warning(f"No images found in {folder_path}")
@@ -64,7 +75,11 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
 def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_slices: Union[str, int] = 'all',
                 file_format: str = 'bmp') -> None:
     """
-    Save the slices of a 3D volume along axis 0 as images img_0, img_1, ... Needs the `io` extra.
+    Save the slices of a 3D volume along axis 0 as images. Needs the `io` extra.
+
+    Slice i is written as img_<i>, zero padded to the width of the last index: 10 slices give
+    img_0 to img_9, 12 slices give img_00 to img_11. Plain sorting of the names keeps the slice
+    order, and `load_images` reads them back in that order.
 
     If `folder_path` exists, it is deleted first with everything in it.
 
@@ -85,6 +100,7 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
     if num_slices == 'all':
         num_slices = volume.shape[0]
         
+    width = len(str(max(num_slices - 1, 0)))
     for i in range(num_slices):
         img = volume[i]
         if np.max(img) == 1:
@@ -92,7 +108,7 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
         else:
             img = img.astype(np.uint8)
 
-        filename = os.path.join(folder_path, f'img_{i}.{file_format}')
+        filename = os.path.join(folder_path, f'img_{i:0{width}d}.{file_format}')
         cv2.imwrite(filename, img)
 
 

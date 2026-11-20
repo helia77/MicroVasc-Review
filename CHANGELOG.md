@@ -26,6 +26,10 @@ All notable changes to this project are documented in this file. The format foll
   greater than 0, coordinates must be finite, and a scale or voxel size must be one finite number
   or 3 finite values. Before, `sigma=inf` returned 0.0, NaN coordinates gave NaN or a SciPy error,
   and a scale of 2 values gave a NumPy broadcast error.
+- `load_images` reads the files in natural sort order of their names, so img_2 comes before
+  img_10. Before, it used the unsorted order of `os.listdir`, and slices could come back in any
+  order. `save_slices` now writes zero-padded file names (img_00 to img_11 for 12 slices), so
+  plain sorting also keeps the order. Folders with the old unpadded names still load in order.
 
 ## [0.2.0] - 2026-11-03
 
