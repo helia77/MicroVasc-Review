@@ -1,10 +1,18 @@
-// 3D viewers on the Binarization and Skeletonization pages.
-// model-viewer is loaded only on pages that have a <model-viewer> element.
+// 3D viewers (<model-viewer> elements) in the docs pages.
+// model-viewer is loaded only on pages that have a viewer. A viewer with reveal="manual" shows
+// its poster, and the script and the mesh are downloaded only when the viewer is clicked.
 
 const MODEL_VIEWER_URL =
   "https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js";
 
-const VIEWER_IDS = ["viewer-segmentation", "viewer-centerline"];
+let modelViewerReady = null;
+
+function loadModelViewer() {
+  modelViewerReady ??= import(MODEL_VIEWER_URL).then(() =>
+    customElements.whenDefined("model-viewer")
+  );
+  return modelViewerReady;
+}
 
 // the same look as the paper's project page
 function setColor(viewer) {
@@ -15,13 +23,20 @@ function setColor(viewer) {
   material.pbrMetallicRoughness.setRoughnessFactor(1);
 }
 
-if (document.querySelector("model-viewer")) {
-  for (const id of VIEWER_IDS) {
-    const viewer = document.getElementById(id);
-    if (!viewer) continue;
-    viewer.addEventListener("load", () => setColor(viewer));
-    // in case the model finished loading before the listener was added
-    if (viewer.loaded) setColor(viewer);
+const viewers = document.querySelectorAll("model-viewer");
+
+for (const viewer of viewers) {
+  viewer.addEventListener("load", () => setColor(viewer));
+  // in case the model finished loading before the listener was added
+  if (viewer.loaded) setColor(viewer);
+
+  if (viewer.getAttribute("reveal") === "manual") {
+    viewer.addEventListener(
+      "click",
+      () => loadModelViewer().then(() => viewer.dismissPoster()),
+      { once: true }
+    );
+  } else {
+    loadModelViewer();
   }
-  import(MODEL_VIEWER_URL);
 }

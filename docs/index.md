@@ -7,6 +7,24 @@ evaluate both against a ground truth. It is the code for the survey paper cited 
 pip install microvasc
 ```
 
+## 3D models
+
+A segmented microvascular network and its centerline. Click an image to load the 3D model, then
+drag to rotate it.
+
+<div style="display: flex; flex-wrap: wrap; gap: 1rem">
+<model-viewer src="https://www.helia-gohar.com/data/mesh/ground_segmentation.glb" alt="3D model of a segmented microvascular network" reveal="manual" camera-controls shadow-intensity="1" scale="-1 1 -1" style="display: block; flex: 1 1 280px; height: 300px">
+<button slot="poster" type="button" aria-label="Load the 3D model of the segmented network" style="display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer">
+<img src="images/home-segmentation.webp" alt="Segmented microvascular network" width="360" height="300" style="width: 100%; height: 100%; object-fit: contain">
+</button>
+</model-viewer>
+<model-viewer src="https://www.helia-gohar.com/data/mesh/ground_centerline.glb" alt="3D model of a microvascular network centerline" reveal="manual" camera-controls shadow-intensity="1" scale="-1 1 -1" style="display: block; flex: 1 1 280px; height: 300px">
+<button slot="poster" type="button" aria-label="Load the 3D model of the centerline" style="display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer">
+<img src="images/home-centerline.webp" alt="Centerline of the microvascular network" width="360" height="300" style="width: 100%; height: 100%; object-fit: contain">
+</button>
+</model-viewer>
+</div>
+
 | Page | Contents |
 |---|---|
 | [Binarization](binarize.md) | Otsu, Frangi and Beyond Frangi, `binarize` options, external methods |
