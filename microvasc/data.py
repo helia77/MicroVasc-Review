@@ -4,22 +4,30 @@ import struct
 import numpy as np
 import logging as log
 import skimage as ski
+from typing import List, Optional, Sequence, Tuple, Union
 
 
-def load_images(folder_path, image_range='all', stack=False, grayscale=False, crop_size=(0,0), crop_location = (0, 0)):
+def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, int, Sequence[int]] = 'all',
+                stack: bool = False, grayscale: bool = False, crop_size: Tuple[int, int] = (0, 0),
+                crop_location: Tuple[int, int] = (0, 0)) -> Optional[Union[np.ndarray, List[np.ndarray]]]:
     """
-    Load images from a folder into a numpy array or list.
+    Load the .bmp, .jpg, .tif and .png images of a folder. Needs the `io` extra.
+
+    The files are taken in the order returned by `os.listdir`, which is not sorted.
 
     Args:
-        folder_path (str): Path to the folder containing images.
-        image_range (str or list): Range of images to load. 'all' for all images, or [start, end] for a range.
-        stack (bool): If True, return images as a stacked numpy array. Else, return a list of images.
-        grayscale (bool): If True, load images as grayscale. Else, load as RGB.
-        crop_size (tuple): Size of the crop (height, width). If (0, 0), no cropping is applied.
-        crop_location (tuple): Location of the crop (x, y).
+        folder_path: Folder containing the images.
+        image_range: 'all' for all images, an int n for the first n images, or [start, end]
+            for the images start to end - 1.
+        stack: If True, return one array with the images along axis 0. Else return a list.
+        grayscale: If True, load images as grayscale. Else load them as 3-channel BGR, the
+            OpenCV channel order.
+        crop_size: Crop size (rows, columns). (0, 0) means no cropping.
+        crop_location: Top-left corner of the crop (row, column).
 
     Returns:
-        np.ndarray or list: Loaded images as a stacked array or list.
+        The images as an array or a list. None, with a logged warning, if the folder has no
+            images. Images that OpenCV cannot read are skipped with a warning.
     """
     import cv2
     images_list = [f for f in os.listdir(folder_path) if f.endswith('.bmp') or
@@ -53,15 +61,21 @@ def load_images(folder_path, image_range='all', stack=False, grayscale=False, cr
         return images
 
 
-def save_slices(volume, folder_path, num_slices='all', file_format='bmp'):
+def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_slices: Union[str, int] = 'all',
+                file_format: str = 'bmp') -> None:
     """
-    Save slices of a 3D volume as images.
+    Save the slices of a 3D volume along axis 0 as images img_0, img_1, ... Needs the `io` extra.
+
+    If `folder_path` exists, it is deleted first with everything in it.
+
+    Each slice is converted to uint8 on its own: a slice whose maximum is 1 is multiplied by
+    255, any other slice is cast to uint8 unchanged.
 
     Args:
-        volume (np.ndarray): 3D volume to save.
-        folder_path (str): Path to the output folder.
-        num_slices (str or int): Number of slices to save. 'all' for all slices.
-        file_format (str): File format for saving images ('bmp' or 'png').
+        volume: 3D volume.
+        folder_path: Output folder.
+        num_slices: Number of slices to save, from slice 0. 'all' for all slices.
+        file_format: Image file extension, such as 'bmp' or 'png'.
     """
     import cv2
     if os.path.exists(folder_path):
@@ -82,15 +96,18 @@ def save_slices(volume, folder_path, num_slices='all', file_format='bmp'):
         cv2.imwrite(filename, img)
 
 
-def nrrd2npy(nrrd_path):
+def nrrd2npy(nrrd_path: Union[str, os.PathLike]) -> np.ndarray:
     """
-    Load a NRRD file and convert it to a ndarray.
+    Read an NRRD file into a NumPy array with pynrrd. Needs the `io` extra.
 
     Args:
-        nrrd_path (str): Path to the NRRD file.
+        nrrd_path: Path to the NRRD file.
 
     Returns:
-        np.ndarray: The volume data as a ndarray (to be used in Slicer3D).
+        The volume, in the axis order of pynrrd's default reader.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
     """
     if not os.path.exists(nrrd_path):
         raise FileNotFoundError(f"NRRD file not found: {nrrd_path}")
@@ -99,15 +116,18 @@ def nrrd2npy(nrrd_path):
     data, _ = nrrd.read(nrrd_path)
     return data
 
-def npy2nrrd(arr, filename):
+def npy2nrrd(arr: np.ndarray, filename: str) -> None:
     """
-    Save a NumPy array as a NRRD file.
+    Write a NumPy array as an NRRD file with pynrrd. Needs the `io` extra.
+
+    `nrrd2npy` reads the file back to the same array.
 
     Args:
-        arr (np.ndarray): The volume data to save.
-        filename (str): Path to the output NRRD file.
-    Returns:
-        None, saves the NRRD file.
+        arr: Volume to save.
+        filename: Path of the output NRRD file, as a string.
+
+    Raises:
+        ValueError: If `arr` is not a NumPy array.
     """
     if not isinstance(arr, np.ndarray):
         raise ValueError("Input must be a NumPy array.")
@@ -115,18 +135,24 @@ def npy2nrrd(arr, filename):
     import nrrd
     nrrd.write(filename, arr)
     
-def resample(data, spacing, output_spacing, interpolator=None):
+def resample(data: np.ndarray, spacing: Sequence[float], output_spacing: Sequence[float],
+             interpolator: Optional[int] = None) -> np.ndarray:
     """
-    Resample a 3D volume to a new spacing.
+    Resample a 3D volume to a new spacing with SimpleITK. Needs the `io` extra.
+
+    Spacings are in SimpleITK order (x, y, z), the reverse of the array axes: `spacing[0]`
+    applies to array axis 2. The output size along each axis is
+    int(size * spacing / output_spacing), and voxels outside the input are 0.
 
     Args:
-        data (np.ndarray): Input 3D volume.
-        spacing (tuple): Original spacing.
-        output_spacing (tuple): Desired spacing.
-        interpolator: Interpolation method (default: None, which means sitk.sitkLinear).
+        data: 3D volume.
+        spacing: Voxel spacing of `data`, (x, y, z).
+        output_spacing: Voxel spacing of the output, (x, y, z).
+        interpolator: A SimpleITK interpolator such as `sitk.sitkNearestNeighbor`. None means
+            `sitk.sitkLinear`.
 
     Returns:
-        np.ndarray: Resampled volume.
+        The resampled volume, float32.
     """
     import SimpleITK as sitk
     if interpolator is None:
@@ -154,14 +180,19 @@ def resample(data, spacing, output_spacing, interpolator=None):
 
     return sitk.GetArrayFromImage(resampled)
 
-def npy2obj(volume, output_name, level=0.0):
+def npy2obj(volume: Union[np.ndarray, str], output_name: Union[str, os.PathLike], level: float = 0.0) -> None:
     """
-    Convert a numpy array to an OBJ file.
+    Write the surface mesh of a volume, from marching cubes, as an OBJ file.
+
+    Vertex coordinates are in voxels, in array axis order.
 
     Args:
-        volume (np.ndarray or str): Volume, or path of a .npy file.
-        output_name (str): Output OBJ file path.
-        level (float): Level for marching cubes.
+        volume: Volume, or path of a .npy file as a string.
+        output_name: Path of the output OBJ file.
+        level: Level for marching cubes.
+
+    Raises:
+        ValueError: If `volume` is not an array or a string.
     """
     if isinstance(volume, str):
         volume = np.load(volume)
@@ -177,20 +208,36 @@ def npy2obj(volume, output_name, level=0.0):
         for face in faces:
             f.write(f'f {face[0]+1} {face[1]+1} {face[2]+1}\n')
 
-def npy2off(volume, output_name, level=0.5):
+def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
+            level: float = 0.5) -> Tuple[int, int]:
     """
-    Convert a binarized volume to a surface mesh in OFF format (input of the Kerautret method).
+    Write the surface mesh of a binarized volume as an OFF file, the input of the Kerautret
+    method.
 
     The mesh comes from marching cubes on the binarized volume, as described in the paper.
-    The paper does not give the exact mesh settings.
+    The paper does not give the exact mesh settings. Vertex coordinates are in voxels, in
+    array axis order.
 
     Args:
-        volume (np.ndarray, str or Path): Volume, or path of a .npy file.
-        output_name (str or Path): Output OFF file path.
-        level (float): Level for marching cubes. 0.5 (default) for 0/1 volumes.
+        volume: Volume, or path of a .npy file.
+        output_name: Path of the output OFF file.
+        level: Level for marching cubes. 0.5 (default) for 0/1 volumes.
 
     Returns:
-        tuple: Number of vertices and faces written.
+        Number of vertices and number of faces written.
+
+    Raises:
+        ValueError: If `volume` is not an array or a path.
+
+    Examples:
+        >>> import os, tempfile
+        >>> import numpy as np
+        >>> from microvasc.data import npy2off
+        >>> volume = np.zeros((6, 6, 6), dtype=np.uint8)
+        >>> volume[2:4, 2:4, 2:4] = 1
+        >>> with tempfile.TemporaryDirectory() as folder:
+        ...     npy2off(volume, os.path.join(folder, "cube.off"))
+        (24, 44)
     """
     if isinstance(volume, (str, os.PathLike)):
         volume = np.load(volume)
@@ -211,15 +258,20 @@ def npy2off(volume, output_name, level=0.5):
     return len(verts), len(faces)
 
 # convert SDP files (created by skelet_kerautret function) to one OBJ file for visualization 
-def sdp2obj(input_file):
+def sdp2obj(input_file: Union[str, os.PathLike]) -> str:
     """
-    Convert SDP files (Vertex.sdp and Edges.sdp) to an OBJ file. Used for Kerautret method.
+    Convert the Kerautret output <prefix>Vertex.sdp and <prefix>Edges.sdp to <prefix>.obj.
+
+    Each vertex line becomes a `v` line and each edge a two-point `l` line.
 
     Args:
-        input_file (str or Path): Base name of the SDP files (without extensions).
+        input_file: The prefix of the SDP files.
 
     Returns:
-        str: Path of the OBJ file, <input_file>.obj.
+        Path of the OBJ file, <prefix>.obj.
+
+    Raises:
+        FileNotFoundError: If one of the two SDP files does not exist.
     """
     input_file = os.fspath(input_file)
     vertex_file = input_file + 'Vertex.sdp'
@@ -244,16 +296,19 @@ def sdp2obj(input_file):
     return obj_file
 
 
-def cg2obj(input_file):
+def cg2obj(input_file: str) -> None:
     """
-    Convert a CG file to an OBJ file. Used in StarLab software (Tagliasacchi method).
+    Convert a CG file from StarLab (Tagliasacchi method) to an OBJ file.
+
+    Every character 'e' in the file is replaced with 'l', and the output path is `input_file`
+    with '.cg' replaced by '.obj'.
 
     Args:
-        input_file (str): Path to the CG file.
+        input_file: Path of the CG file, as a string.
 
     Raises:
         FileNotFoundError: If the CG file does not exist.
-        IOError: If the file cannot be read or written.
+        OSError: If the file cannot be read or written.
     """
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"CG file not found: {input_file}")
@@ -270,22 +325,21 @@ def cg2obj(input_file):
 
 class Vertex:
     """
-    A helper class representing a vertex in a 3D network.
+    A vertex of a network.
+
+    Args:
+        x: First coordinate.
+        y: Second coordinate.
+        z: Third coordinate.
+        e_out: Indices of the edges that start at this vertex.
+        e_in: Indices of the edges that end at this vertex.
 
     Attributes:
-        p (np.ndarray): The position of the vertex as a 3D array [x, y, z].
-        e_out (list): List of outgoing edges.
-        e_in (list): List of incoming edges.
+        p: Position, np.array([x, y, z]).
+        e_out: Indices of the edges that start at this vertex.
+        e_in: Indices of the edges that end at this vertex.
     """
-    def __init__(self, x, y, z, e_out, e_in):
-        """
-        Args:
-            x (float): x coordinate of the vertex.
-            y (float): y coordinate of the vertex.
-            z (float): z coordinate of the vertex.
-            e_out (list): List of outgoing edges.
-            e_in (list): List of incoming edges.
-        """
+    def __init__(self, x: float, y: float, z: float, e_out: Sequence[int], e_in: Sequence[int]) -> None:
         self.p = np.array([x, y, z])
         self.e_out = e_out
         self.e_in = e_in
@@ -293,36 +347,53 @@ class Vertex:
 
 class Edge:
     """
-    A helper class representing an edge in a 3D network.
+    An edge of a network, a polyline between two vertices.
+
+    Args:
+        v0: Index of the start vertex.
+        v1: Index of the end vertex.
+        p: Points between the two vertices.
 
     Attributes:
-        v (tuple): A tuple of two vertex indices (v0, v1) that the edge connects.
-        p (list): A list of points defining the edge.
+        v: The vertex indices (v0, v1).
+        p: Points between the two vertices, without the vertices themselves. From a .nwt file
+            they are (x, y, z, radius) tuples, from an .obj file [x, y, z] arrays.
     """
-    def __init__(self, v0, v1, p):
+    def __init__(self, v0: int, v1: int, p: List[Sequence[float]]) -> None:
         self.v = (v0, v1)
         self.p = p
         
     
 class LineSegment:
     """
-    A helper class representing a line segment in 3D space.
+    A straight line segment in 3D.
+
+    Args:
+        p0: Start point, an array of 3 coordinates.
+        p1: End point, an array of 3 coordinates.
 
     Attributes:
-        p (tuple): Two points (p0, p1) defining the line segment.
+        p: The end points (p0, p1).
     """
-    def __init__(self, p0, p1):
+    def __init__(self, p0: np.ndarray, p1: np.ndarray) -> None:
         self.p = (p0, p1)
 
-    def point_cloud(self, spacing):
+    def point_cloud(self, spacing: float) -> List[np.ndarray]:
         """
-        Generate a point-cloud, sampling the line segment at the specified spacing.
+        Evenly spaced points along the segment, at most `spacing` apart.
 
         Args:
-            spacing (float): Distance between sampled points.
+            spacing: Largest distance between two neighboring points.
 
         Returns:
-            list: A list of points sampling the line segment.
+            The points, including both end points. A zero-length segment gives p0 and p1.
+
+        Examples:
+            >>> import numpy as np
+            >>> from microvasc.data import LineSegment
+            >>> segment = LineSegment(np.array([0.0, 0.0, 0.0]), np.array([3.0, 0.0, 0.0]))
+            >>> [float(p[0]) for p in segment.point_cloud(1.0)]
+            [0.0, 1.0, 2.0, 3.0]
         """
         v = self.p[1] - self.p[0]
         l = np.linalg.norm(v)
@@ -335,21 +406,33 @@ class LineSegment:
 
 
 class NWT:
-    """
-    A class representing a 3D network.
+    r"""
+    A network read from a .nwt or .obj file.
+
+    Args:
+        filename: Path of a .nwt or .obj file. The extension is case sensitive.
 
     Attributes:
-        header (str): Header of the NWT file.
-        desc (str): Description of the network.
-        vertices (list): List of vertices in the network.
-        edges (list): List of edges in the network.
-    """
-    def __init__(self, filename):
-        """
-        Args:
-            filename (str): Path to the input file (NWT or OBJ format).
+        header: File header. "nwtfileformat " for an OBJ file.
+        desc: File description.
+        vertices: The vertices, a list of `Vertex`.
+        edges: The edges, a list of `Edge`.
 
-        """
+    Raises:
+        ValueError: If the extension is not .nwt or .obj.
+
+    Examples:
+        >>> import os, tempfile
+        >>> from microvasc.data import NWT
+        >>> with tempfile.TemporaryDirectory() as folder:
+        ...     path = os.path.join(folder, "network.obj")
+        ...     with open(path, "w") as f:
+        ...         _ = f.write("v 0 0 0\nv 1 0 0\nv 2 0 0\nv 2 3 0\nl 1 2 3 4\n")
+        ...     network = NWT(path)
+        >>> len(network.vertices), len(network.edges), len(network.line_segments())
+        (2, 1, 3)
+    """
+    def __init__(self, filename: Union[str, os.PathLike]) -> None:
         _, fext = os.path.splitext(filename)                            #get the file extension so that we know the file type
         if fext == ".nwt":                                              #if the file extension is NWT
             self.load_nwt(filename)                                     #load a NWT file
@@ -358,13 +441,16 @@ class NWT:
         else:                                                           #otherwise raise an exception
             raise ValueError("Unsupported file type. Expected '.nwt' or '.obj' file.")
     
-    def load_nwt(self, filename):
+    def load_nwt(self, filename: Union[str, os.PathLike]) -> None:
         """
-        Load a network from an NWT file.
+        Read a binary .nwt file into `header`, `desc`, `vertices` and `edges`.
+
+        The file holds a 14-byte header, a 58-byte description, the vertex and edge counts,
+        each vertex as its position and the indices of its outgoing and incoming edges, and each
+        edge as its two vertex indices and its points as (x, y, z, radius).
 
         Args:
-            filename (str): Path to the NWT file.
-
+            filename: Path of the .nwt file.
         """
         fid = open(filename, "rb")                                      #open a binary file for reading
         self.header = fid.read(14).decode("utf-8")                      #load the header
@@ -388,12 +474,16 @@ class NWT:
             p = [tuple(pv[i:i+4]) for i in range(0, 4*npts, 4)]         #group the values into (x, y, z, radius) tuples
             self.edges.append(Edge(v[0], v[1], p))                      #create and append the edge to the edge list
     
-    def load_obj(self, filename):
+    def load_obj(self, filename: Union[str, os.PathLike]) -> None:
         """
-        Load a network from an OBJ file.
+        Read an OBJ file into `header`, `desc`, `vertices` and `edges`.
+
+        Only `v` and `l` lines are read, and their values must be separated by single spaces.
+        Each `l` line is an edge: its first and last points become vertices, the points between
+        them the edge points.
 
         Args:
-            filename (str): Path to the OBJ file.
+            filename: Path of the .obj file.
         """
         fid = open(filename, "r")                                       #open the file for reading        
         vertices = []                                                   #create an array of vertices
@@ -438,12 +528,13 @@ class NWT:
             self.vertices.append(Vertex(vertices[si-1][0], vertices[si-1][1], vertices[si-1][2], v_out[vi], v_in[vi])) #create a vertex object, consisting of a position and attached edges
 
 
-    def line_segments(self):
+    def line_segments(self) -> List[LineSegment]:
         """
-        Generate line segments for all edges in the network.
+        The straight segments of all edges, from the start vertex through the edge points to
+        the end vertex.
 
         Returns:
-            list: A list of line segments.
+            The segments, edge by edge.
         """
         segments = []                                                   #create an empty list of line segments
         #print('num edges:', len(self.edges))
@@ -458,15 +549,17 @@ class NWT:
         return segments
 
  
-    def point_cloud(self, spacing):
+    def point_cloud(self, spacing: float) -> List[np.ndarray]:
         """
-        Generate a point cloud sampling the network at the specified spacing.
+        Points along all segments, from `LineSegment.point_cloud` on each segment.
+
+        A point shared by two segments appears once for each of them.
 
         Args:
-            spacing (float): Distance between sampled points.
+            spacing: Largest distance between two neighboring points of a segment.
 
         Returns:
-            list: A list of points sampling the network.
+            The points, segment by segment.
         """
         segments  = self.line_segments()
         pc = []
@@ -476,12 +569,15 @@ class NWT:
             pc.extend(l.point_cloud(spacing))
         return pc
     
-    def save_obj(self, output_name):
+    def save_obj(self, output_name: Union[str, os.PathLike]) -> None:
         """
-        Save the network as an OBJ file.
+        Write the vertices and edges as an OBJ file.
+
+        Each edge is written as a straight line between its two vertices. The edge points are
+        not written.
 
         Args:
-            output_name (str): Path to the output OBJ file.
+            output_name: Path of the output OBJ file.
         """
         with open(output_name, 'w') as output:
             output.write('# vertices\n')
@@ -495,19 +591,19 @@ class NWT:
 
 
 
-def adjust_brightness_contrast(image, clip_hist_percent=1):
+def adjust_brightness_contrast(image: np.ndarray, clip_hist_percent: float = 1) -> Tuple[np.ndarray, float, float]:
     """
-    Adjust the brightness and contrast of an image automatically.
+    Stretch the contrast of an image by clipping its gray-level histogram. Needs the `io` extra.
+
+    The gray levels below and above the clipped part of the histogram are mapped to 0 and 255
+    with `cv2.convertScaleAbs(image, alpha=alpha, beta=beta)`.
 
     Args:
-        image (np.ndarray): Input image.
-        clip_hist_percent (float): Percentage of histogram to clip for contrast adjustment.
+        image: 3-channel BGR image, uint8.
+        clip_hist_percent: Percent of the pixels to clip, half at each end of the histogram.
 
     Returns:
-        tuple: A tuple containing:
-            - np.ndarray: The adjusted image.
-            - float: Alpha (contrast adjustment factor).
-            - float: Beta (brightness adjustment factor).
+        The adjusted image, alpha (contrast factor) and beta (brightness offset).
     """
     import cv2
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

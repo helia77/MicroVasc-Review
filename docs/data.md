@@ -3,6 +3,7 @@
 Helpers to read networks and convert volumes and meshes between the formats used by the methods.
 Functions marked with `io` need the `io` extra (`pip install -e ".[io]"`). The others need only the
 core install.
+All arguments and return values are listed in the [API reference](api/data.md).
 
 ## Networks
 

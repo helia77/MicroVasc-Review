@@ -38,6 +38,7 @@ nav:
       - skeleton: api/skeleton.md
       - metrics.geometry: api/metrics_geometry.md
       - metrics.network: api/metrics_network.md
+      - data: api/data.md
 
 plugins:
   - search
