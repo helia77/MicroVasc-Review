@@ -482,7 +482,7 @@ class NWT:
     A network read from a .nwt or .obj file.
 
     Args:
-        filename: Path of a .nwt or .obj file. The extension is case sensitive.
+        filename: Path of a .nwt or .obj file. The extension can be in any letter case.
 
     Attributes:
         header: File header. "nwtfileformat " for an OBJ file.
@@ -505,7 +505,7 @@ class NWT:
         (2, 1, 3)
     """
     def __init__(self, filename: Union[str, os.PathLike]) -> None:
-        _, fext = os.path.splitext(filename)                            #get the file extension so that we know the file type
+        fext = os.path.splitext(filename)[1].lower()                    #get the file extension so that we know the file type
         if fext == ".nwt":                                              #if the file extension is NWT
             self.load_nwt(filename)                                     #load a NWT file
         elif fext == ".obj":                                            #if the file extension is OBJ
@@ -550,7 +550,7 @@ class NWT:
         """
         Read an OBJ file into `header`, `desc`, `vertices` and `edges`.
 
-        Only `v` and `l` lines are read, and their values must be separated by single spaces.
+        Only `v` and `l` lines are read. Their values can be separated by any spaces or tabs.
         Each `l` line is an edge: its first and last points become vertices, the points between
         them the edge points.
 
@@ -561,9 +561,9 @@ class NWT:
         lines = []                                                      #create an array of lines
         with open(filename, "r") as fid:                                #open the file for reading, closed on return or error
             for line in fid:                                            #for each line in the file
-                elements = line.split(" ")                              #split it into token elements
-                if elements[-1] == '\n' and len(elements) != 1:         #make sure the last element is not \n
-                    elements.pop(-1)
+                elements = line.split()                                 #split it on any whitespace
+                if not elements:                                        #skip empty lines
+                    continue
                 if elements[0] == "v":                                  #if the element is a vertex
                     vertices.append([float(i) for i in elements[1:]])   #add the coordinates to the vertex list
                 if elements[0] == "l":                                  #if the element is a line

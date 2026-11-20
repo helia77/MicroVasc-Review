@@ -53,6 +53,9 @@ All notable changes to this project are documented in this file. The format foll
   string was read, and a `Path` raised `ValueError`.
 - `NWT` closes the `.nwt` or `.obj` file after reading it, also when the file cannot be parsed.
   Before, `load_nwt` and `load_obj` never closed it, which gave a `ResourceWarning`.
+- `NWT` reads OBJ files whose values are separated by more than one space or by tabs. Before,
+  two spaces raised `ValueError` and tab-separated `v` lines were skipped. The file extension
+  can be in any letter case (`.OBJ`, `.NWT`). Before, only `.obj` and `.nwt` were accepted.
 
 ## [0.2.0] - 2026-11-03
 
