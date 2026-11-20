@@ -1,6 +1,5 @@
 import os
 import re
-import shutil
 import struct
 import numpy as np
 import logging as log
@@ -73,7 +72,7 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
 
 
 def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_slices: Union[str, int] = 'all',
-                file_format: str = 'bmp') -> None:
+                file_format: str = 'bmp', overwrite: bool = False) -> None:
     """
     Save the slices of a 3D volume along axis 0 as images. Needs the `io` extra.
 
@@ -81,7 +80,9 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
     img_0 to img_9, 12 slices give img_00 to img_11. Plain sorting of the names keeps the slice
     order, and `load_images` reads them back in that order.
 
-    If `folder_path` exists, it is deleted first with everything in it.
+    The folder is created if it does not exist, and used as is if it holds no files
+    (subfolders do not count). A folder that holds files is used only with `overwrite=True`.
+    No file other than an earlier slice file is ever deleted.
 
     Each slice is converted to uint8 on its own: a slice whose maximum is 1 is multiplied by
     255, any other slice is cast to uint8 unchanged.
@@ -91,12 +92,29 @@ def save_slices(volume: np.ndarray, folder_path: Union[str, os.PathLike], num_sl
         folder_path: Output folder.
         num_slices: Number of slices to save, from slice 0. 'all' for all slices.
         file_format: Image file extension, such as 'bmp' or 'png'.
+        overwrite: If True, write into a folder that holds files. Its files named
+            img_<number>.<file_format>, padded or not, are removed first, and all other files
+            are kept.
+
+    Raises:
+        FileExistsError: If `folder_path` holds files and `overwrite` is False, or if
+            `folder_path` is a file.
     """
     import cv2
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-    os.makedirs(folder_path)
-        
+    folder = os.fspath(folder_path)
+    os.makedirs(folder, exist_ok=True)
+    files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+    if files and not overwrite:
+        raise FileExistsError(f"output folder {folder!r} already holds {len(files)} file(s). Pass "
+                              f"overwrite=True to replace its img_<number>.{file_format} slice "
+                              f"files, other files are kept.")
+    if overwrite:
+        # only the files this function writes: img_ + digits + the same extension
+        own = re.compile(rf"img_[0-9]+\.{re.escape(file_format)}")
+        for f in files:
+            if own.fullmatch(f):
+                os.remove(os.path.join(folder, f))
+
     if num_slices == 'all':
         num_slices = volume.shape[0]
         

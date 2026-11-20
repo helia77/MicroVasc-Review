@@ -30,5 +30,5 @@ NWT and OBJ networks can be passed to the NetMets metric, see [Metrics](metrics.
 | Name | Purpose |
 |---|---|
 | `load_images(folder_path, ...)` (`io`) | Loads the `.bmp`, `.jpg`, `.tif` and `.png` images of a folder, optionally cropped, as a list or a stacked array. |
-| `save_slices(volume, folder_path, num_slices='all', file_format='bmp')` (`io`) | Saves the slices of a volume as images. |
+| `save_slices(volume, folder_path, num_slices='all', file_format='bmp', overwrite=False)` (`io`) | Saves the slices of a volume as images `img_<i>`. A folder that already holds files is used only with `overwrite=True`, which replaces earlier slice files and keeps all other files. |
 | `adjust_brightness_contrast(image, clip_hist_percent=1)` (`io`) | Adjusts the brightness and contrast of an image by clipping its histogram. |

@@ -30,6 +30,11 @@ All notable changes to this project are documented in this file. The format foll
   img_10. Before, it used the unsorted order of `os.listdir`, and slices could come back in any
   order. `save_slices` now writes zero-padded file names (img_00 to img_11 for 12 slices), so
   plain sorting also keeps the order. Folders with the old unpadded names still load in order.
+- `save_slices` no longer deletes its output folder. Before, an existing folder was removed with
+  everything in it. The default behavior changed: a folder that already holds files now raises
+  `FileExistsError`. With the new `overwrite=True`, only earlier slice files of the same format
+  (`img_<number>.<file_format>`) are removed, and all other files are kept. A missing folder is
+  still created.
 
 ## [0.2.0] - 2026-11-03
 
