@@ -13,6 +13,12 @@ Companion code for [Segmentation and modeling of large-scale microvascular netwo
   <img src="docs/overview.png" alt="Overview of the binarization, skeletonization and evaluation steps" width="100%" />
 </p>
 
+<p align="center">
+  <img src="https://www.helia-gohar.com/MicroVasc-Review/images/models.png" alt="3D models of a segmented microvascular network and its centerline" width="80%" />
+</p>
+
+The models can be rotated in 3D on the [documentation home page](https://www.helia-gohar.com/MicroVasc-Review/#3d-models).
+
 ## What it does
 
 `microvasc` covers three steps of 3D microvascular image processing:
