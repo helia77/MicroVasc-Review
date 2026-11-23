@@ -78,6 +78,11 @@ All notable changes to this project are documented in this file. The format foll
   low byte, so 57000 was read as 222. 8-bit images give the same uint8 arrays as before. Code
   that loads 16-bit images now gets uint16, which `save_slices` rejects until the values are
   converted to 0..255.
+- `adjust_brightness_contrast` raises `ValueError` for an image that is not uint8. Before, uint16
+  and float32 images ran with a histogram of the values 0..255 only, so values above 255 gave a
+  wrong result without a warning. uint16 and float32 inputs now raise even when all values are
+  in 0..255. Other types raised an OpenCV error and now raise `ValueError`. Results for uint8
+  images are unchanged.
 
 ## [0.2.0] - 2026-11-03
 

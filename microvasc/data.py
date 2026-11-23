@@ -716,7 +716,12 @@ def adjust_brightness_contrast(image: np.ndarray, clip_hist_percent: float = 1) 
 
     Returns:
         The adjusted image, alpha (contrast factor) and beta (brightness offset).
+
+    Raises:
+        ValueError: If the image is not uint8. Convert 16-bit or float images to 0..255 first.
     """
+    if image.dtype != np.uint8:
+        raise ValueError(f"image must be uint8, got {image.dtype}. Convert it to 0..255 first.")
     import cv2
     gray = image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     hist = cv2.calcHist([gray], [0], None, [256], [0,256])

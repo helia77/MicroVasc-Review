@@ -55,6 +55,22 @@ def test_2d_image_gives_the_same_result_as_bgr(clip):
     np.testing.assert_array_equal(adjusted, expected[..., 0])
 
 
+@pytest.mark.parametrize("values", [ramp().astype(np.uint16) * 500, ramp().astype(np.uint16),
+                                    ramp().astype(np.float32)], ids=["uint16", "uint16 0..255", "float32 0..255"])
+@pytest.mark.parametrize("to_image", [lambda g: g, bgr], ids=["2D", "BGR"])
+def test_uint16_and_float32_raise(values, to_image):
+    # before, these returned a uint8 image computed from the values in 0..255 only
+    with pytest.raises(ValueError, match=f"image must be uint8, got {values.dtype}"):
+        adjust_brightness_contrast(to_image(values))
+
+
+@pytest.mark.parametrize("dtype", [np.float64, np.int16, np.int32, bool])
+def test_other_dtypes_raise(dtype):
+    # before, OpenCV raised its own error
+    with pytest.raises(ValueError, match="image must be uint8"):
+        adjust_brightness_contrast((ramp() > 60).astype(dtype))
+
+
 def test_input_is_not_changed():
     image = ramp()
     adjust_brightness_contrast(image)
