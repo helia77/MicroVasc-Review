@@ -460,6 +460,9 @@ class LineSegment:
         Returns:
             The points, including both end points. A zero-length segment gives p0 and p1.
 
+        Raises:
+            ValueError: If `spacing` is not a finite number greater than 0.
+
         Examples:
             >>> import numpy as np
             >>> from microvasc.data import LineSegment
@@ -467,12 +470,14 @@ class LineSegment:
             >>> [float(p[0]) for p in segment.point_cloud(1.0)]
             [0.0, 1.0, 2.0, 3.0]
         """
+        if np.ndim(spacing) != 0 or not np.isfinite(spacing) or not spacing > 0:
+            raise ValueError(f"spacing must be a finite number greater than 0, got {spacing!r}")
         v = self.p[1] - self.p[0]
         l = np.linalg.norm(v)
         n = int(np.ceil(l / spacing))
         if n == 0:
             return [self.p[0], self.p[1]]
-        
+
         pc = [self.p[0] + v * (i/n) for i in range(n+1)]
         return pc
 
@@ -632,6 +637,9 @@ class NWT:
 
         Returns:
             The points, segment by segment.
+
+        Raises:
+            ValueError: If `spacing` is not a finite number greater than 0.
         """
         segments  = self.line_segments()
         pc = []

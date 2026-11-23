@@ -61,6 +61,10 @@ All notable changes to this project are documented in this file. The format foll
   constant image gave alpha -255 (or `IndexError` for an all-zero image), and an image with two
   neighboring gray levels raised `ZeroDivisionError`. It also accepts a 2D grayscale image, which
   before raised an OpenCV error. Results for other images are unchanged.
+- `LineSegment.point_cloud` and `NWT.point_cloud` raise `ValueError` unless `spacing` is a finite
+  number greater than 0. Before, a spacing of 0 raised `OverflowError`, NaN raised a `ValueError`
+  from `int`, a negative spacing returned no points or only the end points, and inf returned
+  only the end points.
 
 ## [0.2.0] - 2026-11-03
 
