@@ -83,6 +83,11 @@ All notable changes to this project are documented in this file. The format foll
   wrong result without a warning. uint16 and float32 inputs now raise even when all values are
   in 0..255. Other types raised an OpenCV error and now raise `ValueError`. Results for uint8
   images are unchanged.
+- `load_images` raises `ValueError` when the images it reads do not all have the same bit depth,
+  for example 8-bit and 16-bit files in one folder, and names one file of each. Before, a stack
+  was converted to the larger type, so 8-bit and 16-bit values were mixed in one array without a
+  warning, and a list held arrays of different types. Only the images in `image_range` are
+  checked.
 
 ## [0.2.0] - 2026-11-03
 

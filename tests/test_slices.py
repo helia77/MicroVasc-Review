@@ -248,6 +248,41 @@ def test_8_bit_images_are_read_as_before(tmp_path, ext, grayscale):
     np.testing.assert_array_equal(loaded, expected)
 
 
+# mixed bit depths
+
+MIXED = [(np.uint8, np.uint16), (np.uint16, np.uint8), (np.uint16, np.float32)]
+
+
+@pytest.mark.parametrize("first,second", MIXED, ids=lambda t: np.dtype(t).name)
+@pytest.mark.parametrize("stack", [True, False])
+def test_mixed_bit_depths_raise(cv2, tmp_path, first, second, stack):
+    # before, a stack was converted to the larger type and a list mixed types
+    cv2.imwrite(str(tmp_path / "img_0.tif"), np.full((4, 5), 200, first))
+    cv2.imwrite(str(tmp_path / "img_1.tif"), np.full((4, 5), 200, first))
+    cv2.imwrite(str(tmp_path / "img_2.tif"), np.full((4, 5), 250, second))
+    message = (f"'img_2.tif' is {np.dtype(second).name} and 'img_0.tif' is {np.dtype(first).name}. "
+               "All images must have the same bit depth")
+    with pytest.raises(ValueError, match=re.escape(message)):
+        load_images(tmp_path, stack=stack, grayscale=True)
+
+
+def test_mixed_bit_depths_outside_image_range_are_not_read(cv2, tmp_path):
+    cv2.imwrite(str(tmp_path / "img_0.tif"), np.full((4, 5), 200, np.uint8))
+    cv2.imwrite(str(tmp_path / "img_1.tif"), np.full((4, 5), 201, np.uint8))
+    cv2.imwrite(str(tmp_path / "img_2.tif"), np.full((4, 5), 50000, np.uint16))
+    loaded = load_images(tmp_path, image_range=2, stack=True, grayscale=True)
+    assert loaded.dtype == np.uint8 and loaded[:, 0, 0].tolist() == [200, 201]
+
+
+def test_mixed_bit_depths_in_multi_page_tiff_raise(cv2, tmp_path):
+    cv2.imwritemulti(str(tmp_path / "stack.tif"), [np.full((4, 5), 200, np.uint8),
+                                                   np.full((4, 5), 50000, np.uint16)])
+    if cv2.imreadmulti(str(tmp_path / "stack.tif"), flags=cv2.IMREAD_ANYDEPTH)[1][1].dtype != np.uint16:
+        pytest.skip("this OpenCV writes all pages with one bit depth")
+    with pytest.raises(ValueError, match=re.escape("'page 1 of stack.tif' is uint16 and 'page 0 of stack.tif' is uint8")):
+        load_images(tmp_path, stack=True, grayscale=True)
+
+
 # output folder
 
 def write_files(folder, contents):

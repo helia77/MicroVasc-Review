@@ -29,7 +29,7 @@ NWT and OBJ networks can be passed to the NetMets metric, see [Metrics](metrics.
 
 | Name | Purpose |
 |---|---|
-| `load_images(folder_path, ...)` (`io`) | Loads the `.bmp`, `.jpg`, `.tif`, `.tiff` and `.png` images of a folder (any letter case), optionally cropped, as a list or a stacked array. A multi-page TIFF must be the only image in the folder, and its pages are the slices. Images keep their bit depth: 16-bit files give uint16, not rescaled. |
+| `load_images(folder_path, ...)` (`io`) | Loads the `.bmp`, `.jpg`, `.tif`, `.tiff` and `.png` images of a folder (any letter case), optionally cropped, as a list or a stacked array. A multi-page TIFF must be the only image in the folder, and its pages are the slices. Images keep their bit depth: 16-bit files give uint16, not rescaled. All images read must have the same bit depth. |
 | `save_slices(volume, folder_path, num_slices='all', file_format='bmp', overwrite=False)` (`io`) | Saves the slices of a volume as images `img_<i>`. A folder that already holds files is used only with `overwrite=True`, which replaces earlier slice files and keeps all other files. |
 | `adjust_brightness_contrast(image, clip_hist_percent=1)` (`io`) | Adjusts the brightness and contrast of a uint8 image by clipping its histogram. Other types raise `ValueError`. |
 

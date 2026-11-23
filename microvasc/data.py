@@ -30,7 +30,8 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
 
     Images keep their bit depth: 8-bit files give uint8, 16-bit files give uint16 with the
     values unchanged. Nothing is rescaled. Convert 16-bit data yourself before functions that
-    expect 0..255, such as `save_slices`.
+    expect 0..255, such as `save_slices`. All images read must have the same bit depth. Only
+    the images in `image_range` are read and checked.
 
     Args:
         folder_path: Folder containing the images.
@@ -47,7 +48,8 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
             images. Images that OpenCV cannot read are skipped with a warning.
 
     Raises:
-        ValueError: If the folder has a multi-page TIFF and other images.
+        ValueError: If the folder has a multi-page TIFF and other images, or if the images read
+            do not all have the same bit depth (for example 8-bit and 16-bit files).
     """
     import cv2
     extensions = ('.bmp', '.jpg', '.tif', '.tiff', '.png')
@@ -82,14 +84,20 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
         img_range = image_range
 
     images = []
+    first = None   # name and type of the first image read
     for i in range(img_range[0], img_range[1]):
         if multi_page:
-            img = pages[i]
+            img, name = pages[i], f"page {i} of {multi_page[0]}"
         else:
-            img = cv2.imread(os.path.join(folder_path, images_list[i]), flags)
+            img, name = cv2.imread(os.path.join(folder_path, images_list[i]), flags), images_list[i]
         if img is None:
-            log.warning(f"Failed to load image: {images_list[i]}")
+            log.warning(f"Failed to load image: {name}")
             continue
+        if first is None:
+            first = (name, img.dtype)
+        elif img.dtype != first[1]:
+            raise ValueError(f"{name!r} is {img.dtype} and {first[0]!r} is {first[1]}. All images "
+                             f"must have the same bit depth")
         if crop_size != (0, 0):
             x, y = crop_location
             img = img[x:x+crop_size[0], y:y+crop_size[1]]
