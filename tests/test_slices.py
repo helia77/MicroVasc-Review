@@ -1,5 +1,6 @@
 """
-Slice order and output folder handling of save_slices and load_images (microvasc/data.py).
+Slice order, file extensions and output folder handling of save_slices and load_images
+(microvasc/data.py).
 
 Each test runs twice: with OpenCV, skipped when it is not installed (it is in the `io` extra),
 and with a small stand-in for cv2 that stores each image as .npy data under the image file
@@ -83,6 +84,39 @@ def test_files_written_in_shuffled_order_load_in_order(cv2, tmp_path, monkeypatc
     np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), v)
     np.testing.assert_array_equal(load_images(tmp_path, image_range=[3, 7], stack=True, grayscale=True), v[3:7])
     np.testing.assert_array_equal(load_images(tmp_path, image_range=4, stack=True, grayscale=True), v[:4])
+
+
+# file extensions
+
+def write_and_read(cv2, folder, names, v):
+    """Write v[i] to names[i] and return what OpenCV reads back (JPEG is lossy)."""
+    for name, image in zip(names, v):
+        cv2.imwrite(str(folder / name), image)
+    return np.stack([cv2.imread(str(folder / name), cv2.IMREAD_GRAYSCALE) for name in names])
+
+
+@pytest.mark.parametrize("ext", [".bmp", ".jpg", ".tif", ".png", ".tiff", ".BMP", ".JPG", ".TIF",
+                                 ".TIFF", ".PNG", ".Tif", ".Tiff", ".JpG"])
+def test_extension_in_any_case_is_loaded(cv2, tmp_path, ext):
+    v = volume(3)
+    expected = write_and_read(cv2, tmp_path, [f"img_{i}{ext}" for i in range(3)], v)
+    np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
+
+
+def test_mixed_extensions_load_in_name_order(cv2, tmp_path):
+    names = ["s_0.tif", "s_1.TIF", "s_2.tiff", "s_3.TIFF", "s_4.png", "s_5.PNG", "s_6.bmp",
+             "s_7.BMP", "s_8.jpg", "s_9.JPG", "s_10.Tif"]
+    v = volume(len(names))
+    expected = write_and_read(cv2, tmp_path, names, v)
+    np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
+
+
+def test_other_files_are_skipped(cv2, tmp_path):
+    v = volume(2)
+    expected = write_and_read(cv2, tmp_path, ["img_0.tif", "img_1.TIFF"], v)
+    for name in ["notes.txt", "img_2.npy", "img_3.tif.bak", "img_4tif", "img_5.tiff.txt", "img_6.TI"]:
+        (tmp_path / name).write_bytes(b"not an image")
+    np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
 
 
 # output folder

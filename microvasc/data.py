@@ -18,7 +18,8 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
                 stack: bool = False, grayscale: bool = False, crop_size: Tuple[int, int] = (0, 0),
                 crop_location: Tuple[int, int] = (0, 0)) -> Optional[Union[np.ndarray, List[np.ndarray]]]:
     """
-    Load the .bmp, .jpg, .tif and .png images of a folder. Needs the `io` extra.
+    Load the .bmp, .jpg, .tif, .tiff and .png images of a folder. Needs the `io` extra.
+    The extension can be in any letter case, so .TIF and .Tiff files are loaded too.
 
     The files are read in natural sort order of their names: digit runs compare as numbers,
     so img_2 comes before img_10, and the zero-padded names of `save_slices` sort the same way.
@@ -39,8 +40,8 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
             images. Images that OpenCV cannot read are skipped with a warning.
     """
     import cv2
-    images_list = sorted((f for f in os.listdir(folder_path) if f.endswith('.bmp') or
-                          f.endswith('.jpg') or f.endswith('.tif') or f.endswith('.png')),
+    extensions = ('.bmp', '.jpg', '.tif', '.tiff', '.png')
+    images_list = sorted((f for f in os.listdir(folder_path) if f.lower().endswith(extensions)),
                          key=_natural_key)
 
     if not images_list:

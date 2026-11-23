@@ -65,6 +65,9 @@ All notable changes to this project are documented in this file. The format foll
   number greater than 0. Before, a spacing of 0 raised `OverflowError`, NaN raised a `ValueError`
   from `int`, a negative spacing returned no points or only the end points, and inf returned
   only the end points.
+- `load_images` reads `.tiff` files and accepts the extensions in any letter case (`.TIF`,
+  `.PNG`, `.JPG`, `.BMP`). Before, these files were skipped without a warning, and a folder with
+  only such files gave `None`.
 
 ## [0.2.0] - 2026-11-03
 
