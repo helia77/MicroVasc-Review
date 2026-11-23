@@ -73,6 +73,11 @@ All notable changes to this project are documented in this file. The format foll
   with a multi-page TIFF and other images raises `ValueError`. Folders of single-page images load
   as before. The `io` extra needs opencv-python 4.5.3 or later (was 4.5), the first version with
   `cv2.imcount`.
+- `load_images` keeps the bit depth of the images. 16-bit files give uint16 arrays with the values
+  unchanged, in grayscale and in color. Before, OpenCV converted them to 8 bits by dropping the
+  low byte, so 57000 was read as 222. 8-bit images give the same uint8 arrays as before. Code
+  that loads 16-bit images now gets uint16, which `save_slices` rejects until the values are
+  converted to 0..255.
 
 ## [0.2.0] - 2026-11-03
 

@@ -20,7 +20,7 @@ from microvasc.data import load_images, save_slices
 def _fake_cv2():
     """Single images are stored with np.save, multi-page files with np.savez (one array per page)."""
     cv2 = types.ModuleType("cv2")
-    cv2.IMREAD_GRAYSCALE, cv2.IMREAD_COLOR = 0, 1
+    cv2.IMREAD_GRAYSCALE, cv2.IMREAD_COLOR, cv2.IMREAD_ANYDEPTH = 0, 1, 2
 
     def imwrite(filename, img):
         with open(filename, "wb") as f:
@@ -189,6 +189,63 @@ def test_single_page_tiffs_and_unreadable_file(cv2, tmp_path, caplog):
     (tmp_path / "img_1.tif").write_bytes(b"not an image")
     np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
     assert "Failed to load image: img_1.tif" in caplog.text
+
+
+# bit depth, with OpenCV only: the stand-in keeps every array as it is
+
+def volume16(n):
+    v = np.random.default_rng(n).integers(0, 65536, (n, 5, 7), dtype=np.uint16)
+    v[0, 0, :3] = [57000, 256, 255]
+    return v
+
+
+@pytest.mark.parametrize("ext", [".tif", ".png"])
+def test_16_bit_grayscale_keeps_its_values(tmp_path, ext):
+    cv2 = pytest.importorskip("cv2")
+    v = volume16(4)
+    for i in range(4):
+        cv2.imwrite(str(tmp_path / f"img_{i}{ext}"), v[i])
+    loaded = load_images(tmp_path, stack=True, grayscale=True)
+    assert loaded.dtype == np.uint16
+    np.testing.assert_array_equal(loaded, v)
+    color = load_images(tmp_path, stack=True)
+    assert color.dtype == np.uint16 and color.shape == v.shape + (3,)
+    np.testing.assert_array_equal(color, np.repeat(v[..., None], 3, axis=-1))
+
+
+def test_16_bit_color_keeps_its_values(tmp_path):
+    cv2 = pytest.importorskip("cv2")
+    v = np.stack([volume16(3), volume16(3) // 2, volume16(3) // 3], axis=-1)
+    for i in range(3):
+        cv2.imwrite(str(tmp_path / f"img_{i}.png"), v[i])
+    loaded = load_images(tmp_path, stack=True)
+    assert loaded.dtype == np.uint16
+    np.testing.assert_array_equal(loaded, v)
+    gray = load_images(tmp_path, stack=True, grayscale=True)
+    assert gray.dtype == np.uint16 and gray.shape == v.shape[:3]
+
+
+def test_16_bit_multi_page_tiff_keeps_its_values(tmp_path):
+    cv2 = pytest.importorskip("cv2")
+    v = volume16(5)
+    cv2.imwritemulti(str(tmp_path / "stack.tif"), list(v))
+    loaded = load_images(tmp_path, stack=True, grayscale=True)
+    assert loaded.dtype == np.uint16
+    np.testing.assert_array_equal(loaded, v)
+
+
+@pytest.mark.parametrize("ext", [".bmp", ".jpg", ".tif", ".png"])
+@pytest.mark.parametrize("grayscale", [True, False])
+def test_8_bit_images_are_read_as_before(tmp_path, ext, grayscale):
+    cv2 = pytest.importorskip("cv2")
+    v = volume(3)
+    for i in range(3):
+        cv2.imwrite(str(tmp_path / f"img_{i}{ext}"), np.stack([v[i], v[i] // 2, 255 - v[i]], axis=-1))
+    flags = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
+    expected = np.stack([cv2.imread(str(tmp_path / f"img_{i}{ext}"), flags) for i in range(3)])
+    loaded = load_images(tmp_path, stack=True, grayscale=grayscale)
+    assert loaded.dtype == np.uint8
+    np.testing.assert_array_equal(loaded, expected)
 
 
 # output folder

@@ -28,13 +28,17 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
     A multi-page TIFF must be the only image in the folder. Its pages are then the images, in
     page order, and `image_range` and the crop apply to the pages.
 
+    Images keep their bit depth: 8-bit files give uint8, 16-bit files give uint16 with the
+    values unchanged. Nothing is rescaled. Convert 16-bit data yourself before functions that
+    expect 0..255, such as `save_slices`.
+
     Args:
         folder_path: Folder containing the images.
         image_range: 'all' for all images, an int n for the first n images, or [start, end]
             for the images start to end - 1.
         stack: If True, return one array with the images along axis 0. Else return a list.
         grayscale: If True, load images as grayscale. Else load them as 3-channel BGR, the
-            OpenCV channel order.
+            OpenCV channel order. Both keep the bit depth.
         crop_size: Crop size (rows, columns). (0, 0) means no cropping.
         crop_location: Top-left corner of the crop (row, column).
 
@@ -54,7 +58,8 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
         log.warning(f"No images found in {folder_path}")
         return None
 
-    flags = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
+    # IMREAD_ANYDEPTH keeps 16-bit and float images as they are; without it OpenCV converts to 8-bit
+    flags = (cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR) | cv2.IMREAD_ANYDEPTH
     # pages of each TIFF; 0 if OpenCV cannot read the file
     page_counts = {f: cv2.imcount(os.path.join(folder_path, f))
                    for f in images_list if f.lower().endswith(('.tif', '.tiff'))}
