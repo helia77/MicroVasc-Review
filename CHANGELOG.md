@@ -56,6 +56,11 @@ All notable changes to this project are documented in this file. The format foll
 - `NWT` reads OBJ files whose values are separated by more than one space or by tabs. Before,
   two spaces raised `ValueError` and tab-separated `v` lines were skipped. The file extension
   can be in any letter case (`.OBJ`, `.NWT`). Before, only `.obj` and `.nwt` were accepted.
+- `adjust_brightness_contrast` returns the image unchanged, with alpha 1.0 and beta 0.0, when no
+  gray levels are left between the two histogram cuts, as in a constant image. Before, a
+  constant image gave alpha -255 (or `IndexError` for an all-zero image), and an image with two
+  neighboring gray levels raised `ZeroDivisionError`. It also accepts a 2D grayscale image, which
+  before raised an OpenCV error. Results for other images are unchanged.
 
 ## [0.2.0] - 2026-11-03
 

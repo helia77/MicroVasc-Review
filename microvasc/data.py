@@ -668,17 +668,19 @@ def adjust_brightness_contrast(image: np.ndarray, clip_hist_percent: float = 1) 
     Stretch the contrast of an image by clipping its gray-level histogram. Needs the `io` extra.
 
     The gray levels below and above the clipped part of the histogram are mapped to 0 and 255
-    with `cv2.convertScaleAbs(image, alpha=alpha, beta=beta)`.
+    with `cv2.convertScaleAbs(image, alpha=alpha, beta=beta)`. If no gray levels are left
+    between the two cuts, as in a constant image, the image is returned unchanged (a copy) with
+    alpha 1.0 and beta 0.0.
 
     Args:
-        image: 3-channel BGR image, uint8.
+        image: Grayscale (2D) or 3-channel BGR image, uint8.
         clip_hist_percent: Percent of the pixels to clip, half at each end of the histogram.
 
     Returns:
         The adjusted image, alpha (contrast factor) and beta (brightness offset).
     """
     import cv2
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     hist = cv2.calcHist([gray], [0], None, [256], [0,256])
     hist_size = len(hist)
     
@@ -697,11 +699,15 @@ def adjust_brightness_contrast(image: np.ndarray, clip_hist_percent: float = 1) 
     while accumulator[minimum_gray] < clip_hist_percent:
         minimum_gray += 1
     
-    # Locate right cut
+    # Locate right cut, not below the left cut
     maximum_gray = hist_size -1
-    while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
+    while maximum_gray > minimum_gray and accumulator[maximum_gray] >= (maximum - clip_hist_percent):
         maximum_gray -= 1
-    
+
+    # No gray levels left between the cuts, for example a constant image
+    if maximum_gray == minimum_gray:
+        return (image.copy(), 1.0, 0.0)
+
     # Calculate alpha and beta values
     alpha = 255 / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
