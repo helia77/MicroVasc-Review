@@ -280,29 +280,49 @@ def resample(data: np.ndarray, spacing: Sequence[float], output_spacing: Sequenc
 
     return sitk.GetArrayFromImage(resampled)
 
+def _spacing(spacing: Union[float, Sequence[float]]) -> Tuple[float, float, float]:
+    """`spacing` as 3 floats: one number for all axes, or one value per axis."""
+    s = np.asarray(spacing, dtype=float)
+    if s.ndim > 1 or s.size not in (1, 3):
+        raise ValueError(f"spacing must be one number or 3 values (one per axis), got shape {s.shape}")
+    if not np.all(np.isfinite(s) & (s > 0)):
+        raise ValueError(f"spacing must be finite and greater than 0, got {s.tolist()}")
+    return tuple(float(x) for x in np.broadcast_to(s, (3,)))
+
+
+def _surface(volume: Union[np.ndarray, str, os.PathLike], level: float,
+             spacing: Union[float, Sequence[float]]) -> Tuple[np.ndarray, np.ndarray]:
+    """Vertices and faces from marching cubes, for an array or a .npy path."""
+    spacing = _spacing(spacing)
+    if isinstance(volume, (str, os.PathLike)):
+        volume = np.load(volume)
+    elif not isinstance(volume, np.ndarray):
+        raise ValueError("Input must be a numpy array or file path.")
+    verts, faces, _, _ = ski.measure.marching_cubes(volume, level=level, spacing=spacing)
+    return verts, faces
+
+
 def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
-            level: float = 0.0) -> None:
+            level: float = 0.0, spacing: Union[float, Sequence[float]] = 1.0) -> None:
     """
     Write the surface mesh of a volume, from marching cubes, as an OBJ file.
 
-    Vertex coordinates are in voxels, in array axis order.
+    Vertex coordinates are in array axis order, times `spacing`. With the default spacing
+    they are in voxels.
 
     Args:
         volume: Volume, or path of a .npy file.
         output_name: Path of the output OBJ file.
         level: Level for marching cubes.
+        spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
+            example in um. `resample` takes its spacing in the reverse order (x, y, z).
 
     Raises:
-        ValueError: If `volume` is not an array or a path.
+        ValueError: If `volume` is not an array or a path, or if `spacing` is not one
+            number or 3 values, all finite and greater than 0.
     """
-    if isinstance(volume, (str, os.PathLike)):
-        volume = np.load(volume)
-    elif not isinstance(volume, np.ndarray):
-        raise ValueError("Input must be a numpy array or file path.")
-        
-    # marching cubes
-    verts, faces, _, _ = ski.measure.marching_cubes(volume, level=level)
-    
+    verts, faces = _surface(volume, level, spacing)
+
     with open(output_name, 'w') as f:
         for v in verts:
             f.write(f'v {v[0]} {v[1]} {v[2]}\n')
@@ -310,25 +330,29 @@ def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
             f.write(f'f {face[0]+1} {face[1]+1} {face[2]+1}\n')
 
 def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
-            level: float = 0.5) -> Tuple[int, int]:
+            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0) -> Tuple[int, int]:
     """
     Write the surface mesh of a binarized volume as an OFF file, the input of the Kerautret
     method.
 
     The mesh comes from marching cubes on the binarized volume, as described in the paper.
-    The paper does not give the exact mesh settings. Vertex coordinates are in voxels, in
-    array axis order.
+    The paper does not give the exact mesh settings. Vertex coordinates are in array axis
+    order, times `spacing`. With the default spacing they are in voxels. The Kerautret
+    distances, such as its radius, are in the same units as the mesh.
 
     Args:
         volume: Volume, or path of a .npy file.
         output_name: Path of the output OFF file.
         level: Level for marching cubes. 0.5 (default) for 0/1 volumes.
+        spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
+            example in um. `resample` takes its spacing in the reverse order (x, y, z).
 
     Returns:
         Number of vertices and number of faces written.
 
     Raises:
-        ValueError: If `volume` is not an array or a path.
+        ValueError: If `volume` is not an array or a path, or if `spacing` is not one
+            number or 3 values, all finite and greater than 0.
 
     Examples:
         >>> import os, tempfile
@@ -340,13 +364,7 @@ def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         ...     npy2off(volume, os.path.join(folder, "cube.off"))
         (24, 44)
     """
-    if isinstance(volume, (str, os.PathLike)):
-        volume = np.load(volume)
-    elif not isinstance(volume, np.ndarray):
-        raise ValueError("Input must be a numpy array or file path.")
-
-    # marching cubes
-    verts, faces, _, _ = ski.measure.marching_cubes(volume, level=level)
+    verts, faces = _surface(volume, level, spacing)
 
     # OFF face indices are 0-based
     with open(output_name, 'w') as f:

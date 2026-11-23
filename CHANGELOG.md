@@ -9,6 +9,9 @@ All notable changes to this project are documented in this file. The format foll
 
 - Documentation site at https://www.helia-gohar.com/MicroVasc-Review/, built with MkDocs and
   deployed from `main` by GitHub Actions.
+- `npy2obj` and `npy2off` take a `spacing` argument: the voxel size along array axes 0, 1 and 2,
+  as one number or 3 values. Vertices are multiplied by it, so meshes of anisotropic data keep
+  their shape. The default 1.0 writes the same files as before.
 
 ### Fixed
 

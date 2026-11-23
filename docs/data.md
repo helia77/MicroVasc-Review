@@ -19,11 +19,16 @@ NWT and OBJ networks can be passed to the NetMets metric, see [Metrics](metrics.
 
 | Name | Purpose |
 |---|---|
-| `npy2obj(volume, output_name, level=0.0)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as OBJ. |
-| `npy2off(volume, output_name, level=0.5)` | Surface mesh of a binarized volume (array or `.npy` path) with marching cubes, written as OFF (input of `skeleton kerautret`). |
+| `npy2obj(volume, output_name, level=0.0, spacing=1.0)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as OBJ. |
+| `npy2off(volume, output_name, level=0.5, spacing=1.0)` | Surface mesh of a binarized volume (array or `.npy` path) with marching cubes, written as OFF (input of `skeleton kerautret`). |
 | `nrrd2npy(nrrd_path)` (`io`) | Reads an NRRD file into a NumPy array. |
 | `npy2nrrd(arr, filename)` (`io`) | Writes a NumPy array as NRRD. |
 | `resample(data, spacing, output_spacing, interpolator=None)` (`io`) | Resamples a volume to a new spacing with SimpleITK (linear by default). |
+
+Mesh vertices are in array axis order, times `spacing`, the voxel size along axes 0, 1 and 2 (one
+number or 3 values). The default 1.0 gives voxel units. For LSFM at 1.0 x 1.0 x 0.75 um, pass the
+spacing in the order of your array axes. Careful: `resample` takes its spacing as (x, y, z), the
+reverse order.
 
 ## Image stacks
 
