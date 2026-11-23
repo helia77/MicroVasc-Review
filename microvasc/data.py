@@ -376,6 +376,62 @@ def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
             f.write(f'3 {face[0]} {face[1]} {face[2]}\n')
     return len(verts), len(faces)
 
+# binary STL triangle: normal, 3 vertices, attribute byte count (50 bytes, little endian)
+_STL_TRIANGLE = np.dtype([('normal', '<f4', (3,)), ('vertices', '<f4', (3, 3)), ('attribute', '<u2')])
+
+def npy2stl(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
+            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0) -> int:
+    """
+    Write the surface mesh of a volume, from marching cubes, as a binary STL file.
+
+    STL is the mesh format read by VMTK. Faces point outward: seen from outside, their
+    vertices go counterclockwise, and each normal points away from the object. STL has no
+    units, so coordinates are in the units of `spacing`, in array axis order. With the
+    default spacing they are in voxels.
+
+    Args:
+        volume: Volume, or path of a .npy file.
+        output_name: Path of the output STL file.
+        level: Level for marching cubes. 0.5 (default) for 0/1 volumes.
+        spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
+            example in um. `resample` takes its spacing in the reverse order (x, y, z).
+
+    Returns:
+        Number of triangles written.
+
+    Raises:
+        ValueError: If `volume` is not an array or a path, or if `spacing` is not one
+            number or 3 values, all finite and greater than 0.
+
+    Examples:
+        >>> import os, tempfile
+        >>> import numpy as np
+        >>> from microvasc.data import npy2stl
+        >>> volume = np.zeros((6, 6, 6), dtype=np.uint8)
+        >>> volume[2:4, 2:4, 2:4] = 1
+        >>> with tempfile.TemporaryDirectory() as folder:
+        ...     path = os.path.join(folder, "cube.stl")
+        ...     npy2stl(volume, path), os.path.getsize(path)
+        (44, 2284)
+    """
+    verts, faces = _surface(volume, level, spacing)
+    # marching_cubes faces point inward, so swap two vertices of each face
+    corners = verts[faces[:, [0, 2, 1]]].astype(np.float64)
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    length = np.linalg.norm(normals, axis=1, keepdims=True)
+    # a face with zero area gets a zero normal
+    normals = np.divide(normals, length, out=np.zeros_like(normals), where=length > 0)
+
+    triangles = np.zeros(len(faces), dtype=_STL_TRIANGLE)
+    triangles['normal'] = normals
+    triangles['vertices'] = corners
+    with open(output_name, 'wb') as f:
+        # a binary STL header must not start with "solid", the start of an ASCII STL
+        f.write(b'binary STL, microvasc npy2stl'.ljust(80, b' '))
+        f.write(np.uint32(len(faces)).astype('<u4').tobytes())
+        f.write(triangles.tobytes())
+    return len(faces)
+
 # convert SDP files (created by skelet_kerautret function) to one OBJ file for visualization 
 def sdp2obj(input_file: Union[str, os.PathLike]) -> str:
     """
