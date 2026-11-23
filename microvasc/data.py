@@ -25,6 +25,9 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
     so img_2 comes before img_10, and the zero-padded names of `save_slices` sort the same way.
     Names with equal numbers, such as img_01 and img_1, are ordered as plain strings.
 
+    A multi-page TIFF must be the only image in the folder. Its pages are then the images, in
+    page order, and `image_range` and the crop apply to the pages.
+
     Args:
         folder_path: Folder containing the images.
         image_range: 'all' for all images, an int n for the first n images, or [start, end]
@@ -38,6 +41,9 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
     Returns:
         The images as an array or a list. None, with a logged warning, if the folder has no
             images. Images that OpenCV cannot read are skipped with a warning.
+
+    Raises:
+        ValueError: If the folder has a multi-page TIFF and other images.
     """
     import cv2
     extensions = ('.bmp', '.jpg', '.tif', '.tiff', '.png')
@@ -48,16 +54,34 @@ def load_images(folder_path: Union[str, os.PathLike], image_range: Union[str, in
         log.warning(f"No images found in {folder_path}")
         return None
 
+    flags = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
+    # pages of each TIFF; 0 if OpenCV cannot read the file
+    page_counts = {f: cv2.imcount(os.path.join(folder_path, f))
+                   for f in images_list if f.lower().endswith(('.tif', '.tiff'))}
+    multi_page = [f for f, n in page_counts.items() if n > 1]
+    if multi_page and len(images_list) > 1:
+        raise ValueError(f"{multi_page[0]!r} has {page_counts[multi_page[0]]} pages. A multi-page "
+                         f"TIFF must be the only image in the folder, and {folder_path} has "
+                         f"{len(images_list)} images")
+    if multi_page:
+        _, pages = cv2.imreadmulti(os.path.join(folder_path, multi_page[0]), flags=flags)
+        num_images = len(pages)
+    else:
+        num_images = len(images_list)
+
     if image_range == 'all':
-        img_range = (0, len(images_list))
+        img_range = (0, num_images)
     elif isinstance(image_range, int):
         img_range = (0, image_range)
     else:
         img_range = image_range
-        
+
     images = []
     for i in range(img_range[0], img_range[1]):
-        img = cv2.imread(os.path.join(folder_path, images_list[i]), cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR)
+        if multi_page:
+            img = pages[i]
+        else:
+            img = cv2.imread(os.path.join(folder_path, images_list[i]), flags)
         if img is None:
             log.warning(f"Failed to load image: {images_list[i]}")
             continue

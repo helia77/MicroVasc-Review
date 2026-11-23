@@ -68,6 +68,11 @@ All notable changes to this project are documented in this file. The format foll
 - `load_images` reads `.tiff` files and accepts the extensions in any letter case (`.TIF`,
   `.PNG`, `.JPG`, `.BMP`). Before, these files were skipped without a warning, and a folder with
   only such files gave `None`.
+- `load_images` reads every page of a multi-page TIFF, and the pages are the slices. Before, only
+  the first page was read. A multi-page TIFF must be the only image in the folder, and a folder
+  with a multi-page TIFF and other images raises `ValueError`. Folders of single-page images load
+  as before. The `io` extra needs opencv-python 4.5.3 or later (was 4.5), the first version with
+  `cv2.imcount`.
 
 ## [0.2.0] - 2026-11-03
 

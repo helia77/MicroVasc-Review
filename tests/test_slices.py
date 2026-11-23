@@ -18,6 +18,7 @@ from microvasc.data import load_images, save_slices
 
 
 def _fake_cv2():
+    """Single images are stored with np.save, multi-page files with np.savez (one array per page)."""
     cv2 = types.ModuleType("cv2")
     cv2.IMREAD_GRAYSCALE, cv2.IMREAD_COLOR = 0, 1
 
@@ -26,11 +27,32 @@ def _fake_cv2():
             np.save(f, img)
         return True
 
-    def imread(filename, flags):
-        with open(filename, "rb") as f:
-            return np.load(f)
+    def imwritemulti(filename, imgs):
+        with open(filename, "wb") as f:
+            np.savez(f, *imgs)
+        return True
 
-    cv2.imwrite, cv2.imread = imwrite, imread
+    def _pages(filename):
+        try:
+            with open(filename, "rb") as f:
+                data = np.load(f)
+                return [data[k] for k in data.files] if isinstance(data, np.lib.npyio.NpzFile) else [data]
+        except (OSError, ValueError):
+            return []
+
+    def imread(filename, flags):
+        pages = _pages(filename)
+        return pages[0] if pages else None
+
+    def imreadmulti(filename, flags=1):
+        pages = _pages(filename)
+        return bool(pages), tuple(pages)
+
+    def imcount(filename):
+        return len(_pages(filename))
+
+    cv2.imwrite, cv2.imwritemulti, cv2.imread, cv2.imreadmulti, cv2.imcount = (
+        imwrite, imwritemulti, imread, imreadmulti, imcount)
     return cv2
 
 
@@ -117,6 +139,56 @@ def test_other_files_are_skipped(cv2, tmp_path):
     for name in ["notes.txt", "img_2.npy", "img_3.tif.bak", "img_4tif", "img_5.tiff.txt", "img_6.TI"]:
         (tmp_path / name).write_bytes(b"not an image")
     np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
+
+
+# multi-page TIFF
+
+@pytest.mark.parametrize("name", ["stack.tif", "stack.TIFF"])
+def test_multi_page_tiff_pages_are_the_slices(cv2, tmp_path, name):
+    v = volume(6)
+    cv2.imwritemulti(str(tmp_path / name), list(v))
+    np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), v)
+    np.testing.assert_array_equal(load_images(tmp_path, image_range=[2, 5], stack=True, grayscale=True), v[2:5])
+    np.testing.assert_array_equal(load_images(tmp_path, image_range=3, stack=True, grayscale=True), v[:3])
+    pages = load_images(tmp_path, grayscale=True)
+    assert isinstance(pages, list) and len(pages) == 6
+
+
+def test_multi_page_tiff_in_color_and_cropped(cv2, tmp_path):
+    v = volume(4)
+    cv2.imwritemulti(str(tmp_path / "stack.tif"), list(v))
+    _, pages = cv2.imreadmulti(str(tmp_path / "stack.tif"), flags=cv2.IMREAD_COLOR)
+    expected = np.stack(pages)[:, 1:4, 2:6]
+    loaded = load_images(tmp_path, stack=True, crop_size=(3, 4), crop_location=(1, 2))
+    np.testing.assert_array_equal(loaded, expected)
+    assert loaded.shape[:3] == (4, 3, 4)
+
+
+@pytest.mark.parametrize("others", [["img_1.png"], ["img_1.tif"], ["img_1.tif", "img_2.bmp"]])
+def test_multi_page_tiff_with_other_images_raises(cv2, tmp_path, others):
+    v = volume(5)
+    cv2.imwritemulti(str(tmp_path / "img_0.tif"), list(v))
+    for name in others:
+        cv2.imwrite(str(tmp_path / name), v[0])
+    with pytest.raises(ValueError, match=r"'img_0.tif' has 5 pages\. A multi-page TIFF must be the only image"):
+        load_images(tmp_path, stack=True, grayscale=True)
+
+
+def test_two_multi_page_tiffs_raise(cv2, tmp_path):
+    v = volume(3)
+    cv2.imwritemulti(str(tmp_path / "a.tif"), list(v))
+    cv2.imwritemulti(str(tmp_path / "b.tif"), list(v))
+    with pytest.raises(ValueError, match="'a.tif' has 3 pages"):
+        load_images(tmp_path, grayscale=True)
+
+
+def test_single_page_tiffs_and_unreadable_file(cv2, tmp_path, caplog):
+    # unchanged behavior: one slice per file, a file OpenCV cannot read is skipped with a warning
+    v = volume(3)
+    expected = write_and_read(cv2, tmp_path, ["img_0.tif", "img_2.tiff"], v[[0, 2]])
+    (tmp_path / "img_1.tif").write_bytes(b"not an image")
+    np.testing.assert_array_equal(load_images(tmp_path, stack=True, grayscale=True), expected)
+    assert "Failed to load image: img_1.tif" in caplog.text
 
 
 # output folder

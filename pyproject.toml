@@ -22,14 +22,14 @@ dependencies = [
 kline = ["scikit-fmm>=2021.4"]
 # Image and volume I/O helpers in microvasc.data
 io = [
-    "opencv-python>=4.5",
+    "opencv-python>=4.5.3",
     "pynrrd>=0.4",
     "SimpleITK>=2.0",
 ]
 test = ["pytest"]
 all = [
     "scikit-fmm>=2021.4",
-    "opencv-python>=4.5",
+    "opencv-python>=4.5.3",
     "pynrrd>=0.4",
     "SimpleITK>=2.0",
     "pytest",
