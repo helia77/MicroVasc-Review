@@ -19,10 +19,10 @@ NWT and OBJ networks can be passed to the NetMets metric, see [Metrics](metrics.
 
 | Name | Purpose |
 |---|---|
-| `npy2obj(volume, output_name, level=0.0, spacing=1.0)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as OBJ. |
-| `npy2off(volume, output_name, level=0.5, spacing=1.0)` | Surface mesh of a binarized volume (array or `.npy` path) with marching cubes, written as OFF (input of `skeleton kerautret`). |
-| `npy2stl(volume, output_name, level=0.5, spacing=1.0)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as binary STL (read by VMTK). Faces point outward. |
-| `mesh_is_closed(faces)` | True if every edge of a triangle mesh is in exactly two faces and each directed edge appears once. A mask that touches the volume border gives an open mesh. |
+| `npy2obj(volume, output_name, level=0.0, spacing=1.0, close=False)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as OBJ. |
+| `npy2off(volume, output_name, level=0.5, spacing=1.0, close=False)` | Surface mesh of a binarized volume (array or `.npy` path) with marching cubes, written as OFF (input of `skeleton kerautret`). |
+| `npy2stl(volume, output_name, level=0.5, spacing=1.0, close=False)` | Surface mesh of a volume (array or `.npy` path) with marching cubes, written as binary STL (read by VMTK). Faces point outward. |
+| `mesh_is_closed(faces)` | True if every edge of a triangle mesh is in exactly two faces and each directed edge appears once. A mask that touches the volume border gives an open mesh, unless it is written with `close=True`. |
 | `nrrd2npy(nrrd_path)` (`io`) | Reads an NRRD file into a NumPy array. |
 | `npy2nrrd(arr, filename)` (`io`) | Writes a NumPy array as NRRD. |
 | `resample(data, spacing, output_spacing, interpolator=None)` (`io`) | Resamples a volume to a new spacing with SimpleITK (linear by default). |
@@ -31,6 +31,10 @@ Mesh vertices are in array axis order, times `spacing`, the voxel size along axe
 number or 3 values). The default 1.0 gives voxel units. For LSFM at 1.0 x 1.0 x 0.75 um, pass the
 spacing in the order of your array axes. Careful: `resample` takes its spacing as (x, y, z), the
 reverse order.
+
+Where the object touches the volume border, the mesh is open. `close=True` pads the volume by one
+voxel below `level`, so the mesh is closed there, for example to measure its volume. The caps it
+adds at the border are not real vessel walls. Vertex coordinates stay in the same frame.
 
 ## Image stacks
 

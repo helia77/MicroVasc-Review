@@ -17,6 +17,9 @@ All notable changes to this project are documented in this file. The format foll
   units, so coordinates are in the units of `spacing`.
 - `mesh_is_closed(faces)` checks that a triangle mesh is closed: every edge is in exactly two
   faces and each directed edge appears once.
+- `npy2obj`, `npy2off` and `npy2stl` take `close=False`. With `close=True` the volume is padded
+  by one voxel below `level`, so the mesh is closed where the object touches the volume border.
+  The caps there are not vessel walls. The default writes the same files as before.
 
 ### Fixed
 

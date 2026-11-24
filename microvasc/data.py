@@ -291,19 +291,27 @@ def _spacing(spacing: Union[float, Sequence[float]]) -> Tuple[float, float, floa
 
 
 def _surface(volume: Union[np.ndarray, str, os.PathLike], level: float,
-             spacing: Union[float, Sequence[float]]) -> Tuple[np.ndarray, np.ndarray]:
+             spacing: Union[float, Sequence[float]], close: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """Vertices and faces from marching cubes, for an array or a .npy path."""
     spacing = _spacing(spacing)
     if isinstance(volume, (str, os.PathLike)):
         volume = np.load(volume)
     elif not isinstance(volume, np.ndarray):
         raise ValueError("Input must be a numpy array or file path.")
+    if close:
+        # pad one voxel strictly below `level` (0 is not enough for a bool volume at level 0).
+        # float32 is what marching_cubes uses anyway.
+        pad = min(float(volume.min()), float(level)) - 1
+        volume = np.pad(volume.astype(np.float32), 1, constant_values=pad)
     verts, faces, _, _ = ski.measure.marching_cubes(volume, level=level, spacing=spacing)
+    if close:
+        verts -= np.asarray(spacing, dtype=verts.dtype)
     return verts, faces
 
 
 def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
-            level: float = 0.0, spacing: Union[float, Sequence[float]] = 1.0) -> None:
+            level: float = 0.0, spacing: Union[float, Sequence[float]] = 1.0,
+            close: bool = False) -> None:
     """
     Write the surface mesh of a volume, from marching cubes, as an OBJ file.
 
@@ -316,12 +324,16 @@ def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         level: Level for marching cubes.
         spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
             example in um. `resample` takes its spacing in the reverse order (x, y, z).
+        close: If True, pad the volume by one voxel below `level` on every side, so the mesh
+            is closed where the object touches the volume border. The caps at the border are
+            not real vessel walls. They only make the mesh closed, for example to measure its
+            volume.
 
     Raises:
         ValueError: If `volume` is not an array or a path, or if `spacing` is not one
             number or 3 values, all finite and greater than 0.
     """
-    verts, faces = _surface(volume, level, spacing)
+    verts, faces = _surface(volume, level, spacing, close)
 
     with open(output_name, 'w') as f:
         for v in verts:
@@ -330,7 +342,8 @@ def npy2obj(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
             f.write(f'f {face[0]+1} {face[1]+1} {face[2]+1}\n')
 
 def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
-            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0) -> Tuple[int, int]:
+            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0,
+            close: bool = False) -> Tuple[int, int]:
     """
     Write the surface mesh of a binarized volume as an OFF file, the input of the Kerautret
     method.
@@ -346,6 +359,10 @@ def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         level: Level for marching cubes. 0.5 (default) for 0/1 volumes.
         spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
             example in um. `resample` takes its spacing in the reverse order (x, y, z).
+        close: If True, pad the volume by one voxel below `level` on every side, so the mesh
+            is closed where the object touches the volume border. The caps at the border are
+            not real vessel walls. They only make the mesh closed, for example to measure its
+            volume.
 
     Returns:
         Number of vertices and number of faces written.
@@ -364,7 +381,7 @@ def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         ...     npy2off(volume, os.path.join(folder, "cube.off"))
         (24, 44)
     """
-    verts, faces = _surface(volume, level, spacing)
+    verts, faces = _surface(volume, level, spacing, close)
 
     # OFF face indices are 0-based
     with open(output_name, 'w') as f:
@@ -380,7 +397,8 @@ def npy2off(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
 _STL_TRIANGLE = np.dtype([('normal', '<f4', (3,)), ('vertices', '<f4', (3, 3)), ('attribute', '<u2')])
 
 def npy2stl(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str, os.PathLike],
-            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0) -> int:
+            level: float = 0.5, spacing: Union[float, Sequence[float]] = 1.0,
+            close: bool = False) -> int:
     """
     Write the surface mesh of a volume, from marching cubes, as a binary STL file.
 
@@ -395,6 +413,10 @@ def npy2stl(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         level: Level for marching cubes. 0.5 (default) for 0/1 volumes.
         spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values, for
             example in um. `resample` takes its spacing in the reverse order (x, y, z).
+        close: If True, pad the volume by one voxel below `level` on every side, so the mesh
+            is closed where the object touches the volume border. The caps at the border are
+            not real vessel walls. They only make the mesh closed, for example to measure its
+            volume.
 
     Returns:
         Number of triangles written.
@@ -414,7 +436,7 @@ def npy2stl(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         ...     npy2stl(volume, path), os.path.getsize(path)
         (44, 2284)
     """
-    verts, faces = _surface(volume, level, spacing)
+    verts, faces = _surface(volume, level, spacing, close)
     # marching_cubes faces point inward, so swap two vertices of each face
     corners = verts[faces[:, [0, 2, 1]]].astype(np.float64)
     normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
