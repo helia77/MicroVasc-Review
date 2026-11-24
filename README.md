@@ -153,3 +153,5 @@ Citation metadata is also in [CITATION.cff](CITATION.cff), which GitHub shows as
 MIT License. See [LICENSE](LICENSE).
 
 `Skeletonizer.kline` is derived from poreture (BSD 3-clause). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+`microvasc/_oof.py` is derived from Max W.K. Law's OOF code (BSD 3-clause), see the same file.
