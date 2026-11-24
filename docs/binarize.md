@@ -101,6 +101,9 @@ binarize oof \
 In Python, the options are the arguments of `Binarizer.oof`: `radii`, `sigma`, `spacing`,
 `threshold` (None, `'otsu2d'`, `'otsu3d'` or a number) and `pad`.
 
+The port is tested against reference output from Law's MATLAB code on crops of a KESM and a
+micro-CT volume.
+
 References:
 
 * M.W.K. Law and A.C.S. Chung, "Three Dimensional Curvilinear Structure Detection using
