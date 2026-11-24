@@ -25,7 +25,7 @@ The models can be rotated in 3D on the [documentation home page](https://www.hel
 
 | Step | Methods |
 |---|---|
-| Binarization | Otsu (2D and 3D), Frangi, Beyond Frangi |
+| Binarization | Otsu (2D and 3D), Frangi, Beyond Frangi, optimally oriented flux (OOF) |
 | Skeletonization | Lee, Palágyi, Kline, Kerautret |
 | Evaluation | Jaccard, Dice, precision, recall, NetMets |
 
@@ -33,7 +33,7 @@ Kerautret calls the external CDCVAM program, which must be built separately. See
 
 The paper evaluates these methods on KESM, LSFM, and micro-CT data.
 
-The package includes a subset of the methods compared in the paper. Optimally Oriented Flux, U-Net, nnU-Net, Tagliasacchi, and Antiga are not included. The documentation lists them, with links to their implementations where available.
+The package includes a subset of the methods compared in the paper. U-Net, nnU-Net, Tagliasacchi, and Antiga are not included. The documentation lists them, with links to their implementations where available.
 
 ## Installation
 
@@ -116,7 +116,7 @@ The documentation is also published at https://www.helia-gohar.com/MicroVasc-Rev
 
 | Page | Contents |
 |---|---|
-| [Binarization](docs/binarize.md) | Otsu, Frangi, Beyond Frangi, CLI options, and external methods |
+| [Binarization](docs/binarize.md) | Otsu, Frangi, Beyond Frangi, OOF, CLI options, and external methods |
 | [Skeletonization](docs/skeleton.md) | Lee, Palágyi, Kline, Kerautret, CLI options, and paper settings |
 | [Metrics](docs/metrics.md) | Jaccard, Dice, precision, recall, and NetMets |
 | [Parameter optimization](docs/optimization.md) | Slurm sweeps for the Frangi and Beyond Frangi parameters |

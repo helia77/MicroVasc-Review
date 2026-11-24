@@ -1,17 +1,21 @@
 import gc
 import math
+import numbers
 import logging
 import argparse
 import numpy as np
 from pathlib import Path
 import scipy.ndimage as ndi
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
+
+from microvasc._oof import oof_response
 
 logger = logging.getLogger(__name__)
 
 class Binarizer:
     """
-    Binarize a 3D volume with Otsu thresholding, Frangi or Beyond Frangi.
+    Binarize a 3D volume with Otsu thresholding, Frangi, Beyond Frangi or optimally oriented
+    flux (OOF).
 
     Args:
         volume: 3D grayscale volume.
@@ -347,6 +351,71 @@ class Binarizer:
 
         logger.info("Beyond Frangi filter completed.")
         return output
+
+    def oof(self, radii: Sequence[float], sigma: float = 1.0, spacing: Union[float, Sequence[float]] = 1.0,
+            threshold: Union[None, str, float] = None, pad: bool = True) -> np.ndarray:
+        """
+        Optimally oriented flux (OOF), a port of Law's MATLAB oof3response.
+
+        At each radius, the response is the eigenvalue of the oriented flux matrix with the
+        largest magnitude (Law and Chung, ECCV 2008). Radii are compared with the curvilinear
+        normalization of Law et al. (ECCV 2012), and the output keeps, per voxel, the signed
+        response with the largest magnitude over the radii. For a white background the volume
+        is negated first, so vessels are positive for either background.
+
+        The normalization needs min(radii) >= sigma. Otherwise the surface area normalization
+        of the 2008 paper is used, with a warning, as in Law's code.
+
+        M.W.K. Law and A.C.S. Chung, "Three Dimensional Curvilinear Structure Detection using
+        Optimally Oriented Flux", ECCV 2008, pp. 368-382.
+        M.W.K. Law et al., "Dilated Divergence based Scale-Space Representation for Curve
+        Analysis", ECCV 2012, pp. 557-571.
+
+        Args:
+            radii: Radii in the units of `spacing`, for example in voxels with the default.
+            sigma: Gaussian smoothing, in the units of `spacing`.
+            spacing: Voxel size along array axes 0, 1 and 2, as one number or 3 values.
+            threshold: None (default) returns the signed response. 'otsu2d' or 'otsu3d'
+                thresholds it with Otsu, treating it as bright on black for either background.
+                A number t returns response > t.
+            pad: Pad each side by ceil((max(radii) + 3 sigma) / spacing) voxels, mirrored,
+                before the FFT, and crop after. Without it the FFT wraps around at the border.
+
+        Returns:
+            float64 response, or a uint8 array of 0 and 1 when threshold is set. Same shape as
+                the volume.
+
+        Raises:
+            ValueError: If threshold is not None, 'otsu2d', 'otsu3d' or a finite number, if the
+                volume is not 3D, or if radii, sigma or spacing are not positive and finite.
+
+        Examples:
+            >>> import numpy as np
+            >>> from microvasc.binarize import Binarizer
+            >>> z, y, x = np.mgrid[:16, :16, :16]
+            >>> tube = 100.0 * ((y - 8)**2 + (x - 8)**2 <= 4)   # bright tube along axis 0
+            >>> response = Binarizer(tube).oof(radii=[1, 2, 3])
+            >>> bool(response[8, 8, 8] > 0), bool(response[8, 8, 8] > response[8, 1, 1])
+            (True, True)
+        """
+        number = isinstance(threshold, numbers.Real) and not isinstance(threshold, bool)
+        named = threshold is None or (isinstance(threshold, str) and threshold in ('otsu2d', 'otsu3d'))
+        if not (named or (number and math.isfinite(threshold))):
+            raise ValueError(f"threshold must be None, 'otsu2d', 'otsu3d' or a finite number, got {threshold!r}")
+        logger.info("Running OOF on %d radii.", len(np.atleast_1d(radii)))
+
+        volume = np.asarray(self.volume, dtype=np.float64)
+        if self.background == 'white':
+            volume = -volume
+        response = oof_response(volume, radii, sigma=sigma, spacing=spacing, pad=pad)
+
+        if number:
+            return (response > threshold).astype(np.uint8)
+        mask = self._threshold_vesselness(response, threshold)
+        if mask is not None:
+            return mask
+        logger.info("OOF completed.")
+        return response
 
 def parse_args() -> argparse.Namespace:
     """

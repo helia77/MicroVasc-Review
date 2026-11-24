@@ -20,6 +20,10 @@ All notable changes to this project are documented in this file. The format foll
 - `npy2obj`, `npy2off` and `npy2stl` take `close=False`. With `close=True` the volume is padded
   by one voxel below `level`, so the mesh is closed where the object touches the volume border.
   The caps there are not vessel walls. The default writes the same files as before.
+- `Binarizer.oof`: optimally oriented flux (Law and Chung, ECCV 2008, with the normalization of
+  Law et al., ECCV 2012), a numpy and scipy.fft port of Law's MATLAB `oof3response`. Returns the
+  signed response, or a mask with `threshold='otsu2d'`, `'otsu3d'` or a number. Radii are in the
+  units of `spacing`. Vessels are positive for either background.
 
 ### Fixed
 

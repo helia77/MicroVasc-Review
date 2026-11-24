@@ -4,9 +4,9 @@
 <model-viewer id="viewer-segmentation" src="https://www.helia-gohar.com/data/mesh/ground_segmentation.glb" alt="3D model of a segmented microvascular network" camera-controls shadow-intensity="1" scale="-1 1 -1" style="width: 100%; height: 400px"></model-viewer>
 </div>
 
-`binarize` implements four of the binarization methods from the paper: Otsu's thresholding in
-2D and 3D, Frangi vesselness and Beyond Frangi. All subcommands read a 3D `.npy` volume and
-write a `.npy` file.
+`binarize` implements five of the binarization methods from the paper: Otsu's thresholding in
+2D and 3D, Frangi vesselness, Beyond Frangi and optimally oriented flux (OOF). All subcommands
+read a 3D `.npy` volume and write a `.npy` file.
 
 | Option | Meaning |
 |---|---|
@@ -62,6 +62,35 @@ flipped for the background. Jerman's reference implementation
 ([JermanEnhancementFilter](https://github.com/timjerman/JermanEnhancementFilter)) uses the signed
 maximum after the flip, so results can differ between the two.
 
+## Optimally oriented flux: `Binarizer.oof`
+
+Optimally oriented flux (Law and Chung, ECCV 2008), ported from Law's MATLAB `oof3response`. At
+each radius the response is the eigenvalue of the oriented flux matrix with the largest
+magnitude. Radii are compared with the curvilinear normalization of Law et al. (ECCV 2012), and
+each voxel keeps the signed response with the largest magnitude over the radii. Vessels are
+positive for either background: for `white` the volume is negated first.
+
+* `radii` are in the units of `spacing` (voxels with the default 1.0). `sigma`, the Gaussian
+  smoothing (default 1.0), is in the same units.
+* The normalization needs min(radii) >= sigma. Otherwise the surface area normalization of Law
+  and Chung (2008) is used, with a warning, as in Law's code.
+* `threshold`: None (default) returns the signed response. `'otsu2d'` or `'otsu3d'` thresholds
+  it with Otsu, and a number t gives response > t. Masks are uint8.
+* Each side is padded by ceil((max(radii) + 3 sigma) / spacing) voxels, mirrored, so the FFT
+  does not wrap around at the border. `pad=False` turns this off.
+
+```python
+response = binarizer.oof(radii=[1, 1.5, 2, 2.5, 3])
+mask = binarizer.oof(radii=[1, 2, 3], spacing=(1.0, 1.0, 0.75), threshold=2.0)
+```
+
+References:
+
+* M.W.K. Law and A.C.S. Chung, "Three Dimensional Curvilinear Structure Detection using
+  Optimally Oriented Flux", ECCV 2008, pp. 368-382.
+* M.W.K. Law et al., "Dilated Divergence based Scale-Space Representation for Curve Analysis",
+  ECCV 2012, pp. 557-571.
+
 ## Python
 
 ```python
@@ -72,6 +101,7 @@ mask = binarizer.otsu3d()
 mask2d = binarizer.otsu2d()
 vesselness = binarizer.frangi(alpha=0.5, beta=0.5, c=3, scales=[1, 2, 3])
 mask = binarizer.bfrangi(tau=0.75, scales=[1, 2, 3], threshold="otsu3d")
+response = binarizer.oof(radii=[1, 2, 3])
 ```
 
 All arguments and return values are listed in the [API reference](api/binarize.md). The
@@ -81,7 +111,6 @@ parameters can be tuned with the scripts described in [Parameter optimization](o
 
 The paper also covers methods that are not implemented here:
 
-* **Optimally Oriented Flux**: [https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure](https://www.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure)
 * **U-Net**: [https://github.com/MrMras/CNN](https://github.com/MrMras/CNN)
 * **nnU-Net**: [https://github.com/MIC-DKFZ/nnunet](https://github.com/MIC-DKFZ/nnunet)
 

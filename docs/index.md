@@ -27,7 +27,7 @@ drag to rotate it.
 
 | Page | Contents |
 |---|---|
-| [Binarization](binarize.md) | Otsu, Frangi and Beyond Frangi, `binarize` options, external methods |
+| [Binarization](binarize.md) | Otsu, Frangi, Beyond Frangi and OOF, `binarize` options, external methods |
 | [Skeletonization](skeleton.md) | Lee, Palágyi, Kline and Kerautret, `skeleton` options, settings used in the paper |
 | [Metrics](metrics.md) | Jaccard, Dice, precision, recall, and NetMets with per-input scales |
 | [Parameter optimization](optimization.md) | Slurm sweeps for alpha, c, beta and tau, and J = F / (2 - F) |
