@@ -432,6 +432,42 @@ def npy2stl(volume: Union[np.ndarray, str, os.PathLike], output_name: Union[str,
         f.write(triangles.tobytes())
     return len(faces)
 
+def mesh_is_closed(faces: Union[np.ndarray, Sequence[Sequence[int]]]) -> bool:
+    """
+    Check that a triangle mesh is closed and its faces are oriented the same way.
+
+    True only if every edge is shared by exactly two faces and each directed edge appears
+    once, so the two faces at an edge go through it in opposite directions. Only the faces
+    are checked, not the vertex positions. An empty mesh is not closed.
+
+    A mask that touches the volume border gives an open mesh with marching cubes.
+
+    Args:
+        faces: Vertex indices, shape (n, 3), for example the faces from marching cubes.
+
+    Returns:
+        True if the mesh is closed.
+
+    Raises:
+        ValueError: If `faces` is not an integer array of shape (n, 3).
+
+    Examples:
+        >>> from microvasc.data import mesh_is_closed
+        >>> tetrahedron = [[0, 1, 2], [0, 3, 1], [1, 3, 2], [2, 3, 0]]
+        >>> mesh_is_closed(tetrahedron), mesh_is_closed(tetrahedron[:3])
+        (True, False)
+    """
+    faces = np.asarray(faces)
+    if faces.ndim != 2 or faces.shape[1] != 3 or (faces.size and faces.dtype.kind not in 'iu'):
+        raise ValueError(f"faces must be integers with shape (n, 3), got {faces.dtype} {faces.shape}")
+    if len(faces) == 0:
+        return False
+    edges = faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2)
+    if len(np.unique(edges, axis=0)) != len(edges):
+        return False
+    _, count = np.unique(np.sort(edges, axis=1), axis=0, return_counts=True)
+    return bool(np.all(count == 2))
+
 # convert SDP files (created by skelet_kerautret function) to one OBJ file for visualization 
 def sdp2obj(input_file: Union[str, os.PathLike]) -> str:
     """

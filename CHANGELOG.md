@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file. The format foll
 - `npy2stl` writes the surface mesh of a volume as binary STL, the mesh format VMTK reads. It
   takes the same arguments as `npy2off`, including `spacing`. Faces point outward. STL has no
   units, so coordinates are in the units of `spacing`.
+- `mesh_is_closed(faces)` checks that a triangle mesh is closed: every edge is in exactly two
+  faces and each directed edge appears once.
 
 ### Fixed
 
