@@ -417,6 +417,18 @@ class Binarizer:
         logger.info("OOF completed.")
         return response
 
+def _oof_threshold(text: str) -> Union[str, float]:
+    """Value of binarize oof --threshold: otsu2d, otsu3d or a finite number."""
+    if text in ('otsu2d', 'otsu3d'):
+        return text
+    try:
+        value = float(text)
+    except ValueError:
+        value = math.nan
+    if not math.isfinite(value):
+        raise argparse.ArgumentTypeError(f"must be otsu2d, otsu3d or a finite number, got {text!r}")
+    return value
+
 def parse_args() -> argparse.Namespace:
     """
     Parse the arguments of the binarize command from sys.argv.
@@ -449,16 +461,26 @@ def parse_args() -> argparse.Namespace:
     bf = sub.add_parser('bfrangi', parents=[parent, vessel], help="Beyond Frangi Filter")
     bf.add_argument('--tau', type=float, required=True)
 
+    oof = sub.add_parser('oof', parents=[parent], help="Optimally oriented flux")
+    oof.add_argument('--radii', nargs='+', type=float, required=True, help="Radii in the units of --spacing.")
+    oof.add_argument('--sigma', type=float, default=1.0, help="Gaussian smoothing in the units of --spacing (default 1).")
+    oof.add_argument('--spacing', nargs='+', type=float, default=1.0,
+                     help="Voxel size along axes 0, 1 and 2, as one number or 3 values (default 1).")
+    oof.add_argument('--threshold', type=_oof_threshold, default=None,
+                     help="otsu2d, otsu3d or a number t (output > t). Without it the float response is saved.")
+    oof.add_argument('--no-pad', dest='pad', action='store_false', help="Do not pad the volume before the FFT.")
+
     return parser.parse_args()
 
 def main() -> None:
     """
     Run the binarize command: load the input .npy volume, apply the method, save the result.
 
-    Subcommands are otsu2d, otsu3d, frangi and bfrangi. For example:
+    Subcommands are otsu2d, otsu3d, frangi, bfrangi and oof. For example:
 
         binarize otsu3d --input in.npy --output out.npy --background white
         binarize frangi --input in.npy --output out.npy --alpha 1 --beta 0.5 --c 3 --scale 1 2 3
+        binarize oof --input in.npy --output out.npy --radii 1 2 3 --threshold otsu3d
     """
     logging.basicConfig(
         level=logging.INFO,
@@ -472,8 +494,11 @@ def main() -> None:
         out = getattr(binzr, args.method)()
     elif args.method == 'frangi':
         out = binzr.frangi(alpha=args.alpha, beta=args.beta, c=args.c, scales=args.scale, threshold=args.threshold)
-    else: # bfrangi
+    elif args.method == 'bfrangi':
         out = binzr.bfrangi(tau=args.tau, scales=args.scale, threshold=args.threshold)
+    else: # oof
+        out = binzr.oof(radii=args.radii, sigma=args.sigma, spacing=args.spacing,
+                        threshold=args.threshold, pad=args.pad)
     
     np.save(args.output, out)
     logger.info("Saved output to %s", args.output)

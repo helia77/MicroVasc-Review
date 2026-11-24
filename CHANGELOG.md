@@ -24,6 +24,9 @@ All notable changes to this project are documented in this file. The format foll
   Law et al., ECCV 2012), a numpy and scipy.fft port of Law's MATLAB `oof3response`. Returns the
   signed response, or a mask with `threshold='otsu2d'`, `'otsu3d'` or a number. Radii are in the
   units of `spacing`. Vessels are positive for either background.
+- `binarize oof` runs `Binarizer.oof` from the command line, with `--radii`, `--sigma`,
+  `--spacing`, `--threshold` (`otsu2d`, `otsu3d` or a number) and `--no-pad`. Without
+  `--threshold` the float response is saved.
 
 ### Fixed
 

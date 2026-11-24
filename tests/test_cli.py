@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import synthetic
+from microvasc.binarize import Binarizer
 from microvasc.skeleton import Skeletonizer
 
 ROOT = Path(__file__).parents[1]
@@ -86,3 +87,60 @@ def test_skeleton_kerautret(tmp_path, fake_cdcvam):
     assert read_log()["argv"] == [str(exe), "-i", str(tmp_path / "mesh.off"), "-o", str(tmp_path / "tree"),
                                   "--dilateDist", "1.5", "-g", "2.0", "-R", "12.0", "-t", "0.25"]
     assert (tmp_path / "tree.obj").exists()
+
+
+def binarize_oof(tmp_path, volume, *args):
+    np.save(tmp_path / "in.npy", volume)
+    return run("-m", "microvasc.binarize", "oof",
+               "--input", str(tmp_path / "in.npy"), "--output", str(tmp_path / "out.npy"), *args)
+
+
+@pytest.mark.parametrize("args, kwargs", [
+    (["--radii", "1", "2", "3"], {"radii": [1.0, 2.0, 3.0]}),
+    (["--radii", "1.5", "3", "--sigma", "0.75", "--spacing", "1", "1", "0.5", "--no-pad", "--background", "white"],
+     {"radii": [1.5, 3.0], "sigma": 0.75, "spacing": [1.0, 1.0, 0.5], "pad": False, "background": "white"}),
+    (["--radii", "2", "--spacing", "0.5"], {"radii": [2.0], "spacing": 0.5}),
+], ids=["defaults", "all-options", "one-spacing"])
+def test_binarize_oof_response(tmp_path, args, kwargs):
+    background = kwargs.pop("background", "black")
+    volume = synthetic.tube() if background == "black" else 255 - synthetic.tube()
+    result = binarize_oof(tmp_path, volume, *args)
+    assert result.returncode == 0, result.stderr
+    out = np.load(tmp_path / "out.npy")
+    assert out.dtype == np.float64
+    np.testing.assert_array_equal(out, Binarizer(volume, background).oof(**kwargs))
+
+
+@pytest.mark.parametrize("text, threshold", [("otsu2d", "otsu2d"), ("otsu3d", "otsu3d"), ("2", 2.0), ("-1.5", -1.5)])
+def test_binarize_oof_threshold(tmp_path, text, threshold):
+    volume = synthetic.tube()
+    result = binarize_oof(tmp_path, volume, "--radii", "1", "2", "3", "--threshold", text)
+    assert result.returncode == 0, result.stderr
+    out = np.load(tmp_path / "out.npy")
+    assert out.dtype == np.uint8
+    np.testing.assert_array_equal(out, Binarizer(volume).oof([1, 2, 3], threshold=threshold))
+
+
+@pytest.mark.parametrize("args, message", [
+    (["--radii", "1", "--threshold", "otsu"], "--threshold: must be otsu2d, otsu3d or a finite number"),
+    (["--radii", "1", "--threshold", "nan"], "--threshold: must be otsu2d, otsu3d or a finite number"),
+    (["--radii", "1", "--threshold", "inf"], "--threshold: must be otsu2d, otsu3d or a finite number"),
+    (["--radii", "1", "--sigma", "x"], "--sigma: invalid float value"),
+    (["--threshold", "otsu3d"], "the following arguments are required: --radii"),
+    (["--radii"], "--radii: expected at least one argument"),
+    (["--radii", "-1", "2"], "radii"),
+    (["--radii", "1", "--sigma", "0"], "sigma"),
+    (["--radii", "1", "--spacing", "1", "1"], "spacing must be one number or 3 values"),
+])
+def test_binarize_oof_bad_input(tmp_path, args, message):
+    result = binarize_oof(tmp_path, synthetic.tube(), *args)
+    assert result.returncode != 0
+    assert message in result.stderr
+    assert not (tmp_path / "out.npy").exists()
+
+
+def test_binarize_oof_2d_volume(tmp_path):
+    result = binarize_oof(tmp_path, np.zeros((8, 8)), "--radii", "1")
+    assert result.returncode != 0
+    assert "3D" in result.stderr
+    assert not (tmp_path / "out.npy").exists()

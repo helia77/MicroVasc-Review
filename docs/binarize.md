@@ -62,7 +62,7 @@ flipped for the background. Jerman's reference implementation
 ([JermanEnhancementFilter](https://github.com/timjerman/JermanEnhancementFilter)) uses the signed
 maximum after the flip, so results can differ between the two.
 
-## Optimally oriented flux: `Binarizer.oof`
+## Optimally oriented flux: `oof`
 
 Optimally oriented flux (Law and Chung, ECCV 2008), ported from Law's MATLAB `oof3response`. At
 each radius the response is the eigenvalue of the oriented flux matrix with the largest
@@ -70,19 +70,36 @@ magnitude. Radii are compared with the curvilinear normalization of Law et al. (
 each voxel keeps the signed response with the largest magnitude over the radii. Vessels are
 positive for either background: for `white` the volume is negated first.
 
-* `radii` are in the units of `spacing` (voxels with the default 1.0). `sigma`, the Gaussian
-  smoothing (default 1.0), is in the same units.
+| Option | Meaning |
+|---|---|
+| `--radii` | radii, in the units of `--spacing` (voxels with the default) |
+| `--sigma` | Gaussian smoothing, in the units of `--spacing` (default 1) |
+| `--spacing` | voxel size along axes 0, 1 and 2, as one number or 3 values (default 1) |
+| `--threshold` | `otsu2d`, `otsu3d` or a number t (output > t). Without it the float response is saved |
+| `--no-pad` | do not pad the volume before the FFT |
+
 * The normalization needs min(radii) >= sigma. Otherwise the surface area normalization of Law
   and Chung (2008) is used, with a warning, as in Law's code.
-* `threshold`: None (default) returns the signed response. `'otsu2d'` or `'otsu3d'` thresholds
-  it with Otsu, and a number t gives response > t. Masks are uint8.
+* Masks are uint8. Otsu treats the response as bright on black for either background.
 * Each side is padded by ceil((max(radii) + 3 sigma) / spacing) voxels, mirrored, so the FFT
-  does not wrap around at the border. `pad=False` turns this off.
+  does not wrap around at the border. `--no-pad` turns this off.
 
-```python
-response = binarizer.oof(radii=[1, 1.5, 2, 2.5, 3])
-mask = binarizer.oof(radii=[1, 2, 3], spacing=(1.0, 1.0, 0.75), threshold=2.0)
+```bash
+binarize oof \
+  --input path/to/volume.npy \
+  --output path/to/response.npy \
+  --radii 1 1.5 2 2.5 3
+
+binarize oof \
+  --input path/to/volume.npy \
+  --output path/to/mask.npy \
+  --radii 1 2 3 \
+  --spacing 1 1 0.75 \
+  --threshold 2
 ```
+
+In Python, the options are the arguments of `Binarizer.oof`: `radii`, `sigma`, `spacing`,
+`threshold` (None, `'otsu2d'`, `'otsu3d'` or a number) and `pad`.
 
 References:
 
