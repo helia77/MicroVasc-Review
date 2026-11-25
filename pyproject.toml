@@ -56,7 +56,9 @@ include = ["microvasc*"]
 microvasc = ["PK12.npz"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# microvasc is listed so that the examples in its docstrings run as doctests
+testpaths = ["tests", "microvasc"]
+addopts = "--doctest-modules"
 filterwarnings = [
     # NumPy deprecations raised inside scikit-image itself (e.g. in marching_cubes);
     # warnings attributed to this package stay visible
